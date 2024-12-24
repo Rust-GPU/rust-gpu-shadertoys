@@ -1,250 +1,336 @@
-use shared::ShaderConstants;
-use winit::{
-    event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    window::Window,
-};
+use futures::executor::block_on;
+use ouroboros::self_referencing;
+use std::borrow::Cow;
+use std::error::Error;
+use std::time::Instant;
+use wgpu;
+use winit::application::ApplicationHandler;
+use winit::dpi::LogicalSize;
+use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::keyboard::NamedKey;
+use winit::window::{Window, WindowAttributes, WindowId};
 
-unsafe fn any_as_u32_slice<T: Sized>(p: &T) -> &[u32] {
-    ::std::slice::from_raw_parts(
-        (p as *const T) as *const u32,
-        ::std::mem::size_of::<T>() / 4,
-    )
+#[self_referencing]
+struct WindowSurface {
+    window: Box<dyn Window>,
+    #[borrows(window)]
+    #[covariant]
+    surface: wgpu::Surface<'this>,
 }
 
-async fn run(
-    shader_module: wgpu::ShaderModuleSource<'static>,
-    event_loop: EventLoop<()>,
-    window: Window,
-    swapchain_format: wgpu::TextureFormat,
-) {
-    let size = window.inner_size();
-    let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+struct ShaderToyApp {
+    device: Option<wgpu::Device>,
+    queue: Option<wgpu::Queue>,
+    window_surface: Option<WindowSurface>,
+    config: Option<wgpu::SurfaceConfiguration>,
+    render_pipeline: Option<wgpu::RenderPipeline>,
+    shader_module: Option<wgpu::ShaderModule>,
+    close_requested: bool,
+    start: Instant,
+    // Mouse state.
+    cursor_x: f32,
+    cursor_y: f32,
+    drag_start_x: f32,
+    drag_start_y: f32,
+    drag_end_x: f32,
+    drag_end_y: f32,
+    mouse_left_pressed: bool,
+    mouse_left_clicked: bool,
+}
 
-    let mut surface = Some(unsafe { instance.create_surface(&window) });
+impl Default for ShaderToyApp {
+    fn default() -> Self {
+        Self {
+            device: None,
+            queue: None,
+            window_surface: None,
+            config: None,
+            render_pipeline: None,
+            shader_module: None,
+            close_requested: false,
+            start: Instant::now(),
+            cursor_x: 0.0,
+            cursor_y: 0.0,
+            drag_start_x: 0.0,
+            drag_start_y: 0.0,
+            drag_end_x: 0.0,
+            drag_end_y: 0.0,
+            mouse_left_pressed: false,
+            mouse_left_clicked: false,
+        }
+    }
+}
 
-    let adapter = instance
-        .request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::default(),
-            // Request an adapter which can render to our surface
-            compatible_surface: surface.as_ref(),
-        })
-        .await
-        .expect("Failed to find an appropriate adapter");
+impl ShaderToyApp {
+    async fn init(&mut self, event_loop: &dyn ActiveEventLoop) -> Result<(), Box<dyn Error>> {
+        let window_attributes = WindowAttributes::default()
+            .with_title("Rust GPU - wgpu")
+            .with_surface_size(LogicalSize::new(1280.0, 720.0));
+        let window_box = event_loop.create_window(window_attributes)?;
+        let instance = wgpu::Instance::default();
 
-    let features = wgpu::Features::PUSH_CONSTANTS;
-    let limits = wgpu::Limits {
-        max_push_constant_size: 256,
-        ..Default::default()
-    };
-
-    // Create the logical device and command queue
-    let (device, queue) = adapter
-        .request_device(
-            &wgpu::DeviceDescriptor {
-                features,
-                limits,
-                shader_validation: true,
+        let window_surface = WindowSurfaceBuilder {
+            window: window_box,
+            surface_builder: |window| {
+                instance
+                    .create_surface(window)
+                    .expect("Failed to create surface")
             },
-            None,
-        )
-        .await
-        .expect("Failed to create device");
+        }
+        .build();
 
-    // Load the shaders from disk
-    let module = device.create_shader_module(shader_module);
+        let window_size = window_surface.borrow_window().surface_size();
+        let surface = window_surface.borrow_surface();
 
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: None,
-        bind_group_layouts: &[],
-        push_constant_ranges: &[wgpu::PushConstantRange {
-            stages: wgpu::ShaderStage::all(),
-            range: 0..std::mem::size_of::<ShaderConstants>() as u32,
-        }],
-    });
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: Some(surface),
+                force_fallback_adapter: false,
+            })
+            .await
+            .ok_or("No adapter found")?;
+        let required_features = wgpu::Features::PUSH_CONSTANTS;
+        let required_limits = wgpu::Limits {
+            max_push_constant_size: 256,
+            ..Default::default()
+        };
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    label: None,
+                    required_features,
+                    required_limits,
+                    ..Default::default()
+                },
+                None,
+            )
+            .await?;
+        let shader_bytes = include_bytes!(env!("shadertoys_shaders.spv"));
+        let shader_spirv: &[u32] = bytemuck::cast_slice(shader_bytes);
+        let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Shader Module"),
+            source: wgpu::ShaderSource::SpirV(Cow::Borrowed(shader_spirv)),
+        });
+        let swapchain_format = surface.get_capabilities(&adapter).formats[0];
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[],
+            push_constant_ranges: &[wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                range: 0..std::mem::size_of::<shared::ShaderConstants>() as u32,
+            }],
+        });
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: None,
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader_module,
+                entry_point: Some("main_vs"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader_module,
+                entry_point: Some("main_fs"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: swapchain_format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                ..Default::default()
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
+        });
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: swapchain_format,
+            width: window_size.width,
+            height: window_size.height,
+            present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![],
+            desired_maximum_frame_latency: Default::default(),
+        };
+        surface.configure(&device, &config);
 
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: None,
-        layout: Some(&pipeline_layout),
-        vertex_stage: wgpu::ProgrammableStageDescriptor {
-            module: &module,
-            entry_point: "main_vs",
-        },
-        fragment_stage: Some(wgpu::ProgrammableStageDescriptor {
-            module: &module,
-            entry_point: "main_fs",
-        }),
-        // Use the default rasterizer state: no culling, no depth bias
-        rasterization_state: None,
-        primitive_topology: wgpu::PrimitiveTopology::TriangleList,
-        color_states: &[swapchain_format.into()],
-        depth_stencil_state: None,
-        vertex_state: wgpu::VertexStateDescriptor {
-            index_format: wgpu::IndexFormat::Uint16,
-            vertex_buffers: &[],
-        },
-        sample_count: 1,
-        sample_mask: !0,
-        alpha_to_coverage_enabled: false,
-    });
+        self.device = Some(device);
+        self.queue = Some(queue);
+        self.window_surface = Some(window_surface);
+        self.config = Some(config);
+        self.render_pipeline = Some(render_pipeline);
+        self.shader_module = Some(shader_module);
+        self.start = Instant::now();
+        Ok(())
+    }
 
-    let mut sc_desc = wgpu::SwapChainDescriptor {
-        usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
-        format: swapchain_format,
-        width: size.width,
-        height: size.height,
-        present_mode: wgpu::PresentMode::Mailbox,
-    };
+    fn render(&mut self) {
+        let window_surface = match &self.window_surface {
+            Some(ws) => ws,
+            None => return,
+        };
 
-    let mut swap_chain = surface
-        .as_ref()
-        .map(|surface| device.create_swap_chain(&surface, &sc_desc));
+        let window = window_surface.borrow_window();
+        let current_size = window.surface_size();
+        let surface = window_surface.borrow_surface();
+        let device = self.device.as_ref().unwrap();
+        let queue = self.queue.as_ref().unwrap();
+        let frame = match surface.get_current_texture() {
+            Ok(frame) => frame,
+            Err(e) => {
+                eprintln!("Failed to acquire texture: {:?}", e);
+                return;
+            }
+        };
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        {
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            rpass.set_viewport(
+                0.0,
+                0.0,
+                current_size.width as f32,
+                current_size.height as f32,
+                0.0,
+                1.0,
+            );
+            let push_constants = shared::ShaderConstants {
+                width: current_size.width,
+                height: current_size.height,
+                time: self.start.elapsed().as_secs_f32(),
+                cursor_x: self.cursor_x,
+                cursor_y: self.cursor_y,
+                drag_start_x: self.drag_start_x,
+                drag_start_y: self.drag_start_y,
+                drag_end_x: self.drag_end_x,
+                drag_end_y: self.drag_end_y,
+                mouse_left_pressed: self.mouse_left_pressed as u32,
+                mouse_left_clicked: self.mouse_left_clicked as u32,
+            };
+            self.mouse_left_clicked = false;
+            rpass.set_pipeline(self.render_pipeline.as_ref().unwrap());
+            rpass.set_push_constants(
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                0,
+                bytemuck::bytes_of(&push_constants),
+            );
+            rpass.draw(0..3, 0..1);
+        }
+        queue.submit(Some(encoder.finish()));
+        frame.present();
+    }
+}
 
-    let start = std::time::Instant::now();
-    let (mut cursor_x, mut cursor_y) = (0.0, 0.0);
-    let (mut drag_start_x, mut drag_start_y) = (0.0, 0.0);
-    let (mut drag_end_x, mut drag_end_y) = (0.0, 0.0);
-    let mut mouse_left_pressed = false;
-    let mut mouse_left_clicked = false;
+impl ApplicationHandler for ShaderToyApp {
+    fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
+        if let Err(e) = block_on(self.init(event_loop)) {
+            eprintln!("Initialization error: {e}");
+            event_loop.exit();
+        }
+    }
 
-    event_loop.run(move |event, _, control_flow| {
-        // Have the closure take ownership of the resources.
-        // `event_loop.run` never returns, therefore we must do this to ensure
-        // the resources are properly cleaned up.
-        let _ = (&instance, &adapter, &module, &pipeline_layout);
-
-        *control_flow = ControlFlow::Poll;
+    fn window_event(
+        &mut self,
+        event_loop: &dyn ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
         match event {
-            Event::MainEventsCleared => {
-                window.request_redraw();
-            }
-            Event::Resumed => {
-                let s = unsafe { instance.create_surface(&window) };
-                swap_chain = Some(device.create_swap_chain(&s, &sc_desc));
-                surface = Some(s);
-            }
-            Event::Suspended => {
-                surface = None;
-                swap_chain = None;
-            }
-            Event::WindowEvent {
-                event: WindowEvent::Resized(size),
-                ..
-            } => {
-                // Recreate the swap chain with the new size
-                sc_desc.width = size.width;
-                sc_desc.height = size.height;
-                if let Some(surface) = &surface {
-                    swap_chain = Some(device.create_swap_chain(surface, &sc_desc));
-                }
-            }
-            Event::RedrawRequested(_) => {
-                if let Some(swap_chain) = &mut swap_chain {
-                    let frame = swap_chain
-                        .get_current_frame()
-                        .expect("Failed to acquire next swap chain texture")
-                        .output;
-                    let mut encoder = device
-                        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-                    {
-                        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                            color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                                attachment: &frame.view,
-                                resolve_target: None,
-                                ops: wgpu::Operations {
-                                    load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                                    store: true,
-                                },
-                            }],
-                            depth_stencil_attachment: None,
-                        });
-                        let push_constants = ShaderConstants {
-                            width: window.inner_size().width,
-                            height: window.inner_size().height,
-                            time: start.elapsed().as_secs_f32(),
-                            cursor_x,
-                            cursor_y,
-                            drag_start_x,
-                            drag_start_y,
-                            drag_end_x,
-                            drag_end_y,
-                            mouse_left_pressed,
-                            mouse_left_clicked,
-                        };
-                        mouse_left_clicked = false;
-                        rpass.set_pipeline(&render_pipeline);
-                        rpass.set_push_constants(wgpu::ShaderStage::all(), 0, unsafe {
-                            any_as_u32_slice(&push_constants)
-                        });
-                        rpass.draw(0..3, 0..1);
+            WindowEvent::CloseRequested => self.close_requested = true,
+            WindowEvent::SurfaceResized(new_size) => {
+                if let Some(config) = self.config.as_mut() {
+                    config.width = new_size.width;
+                    config.height = new_size.height;
+                    if let Some(ws) = &self.window_surface {
+                        let surface = ws.borrow_surface();
+                        if let Some(device) = self.device.as_ref() {
+                            surface.configure(device, config);
+                        }
                     }
-
-                    queue.submit(Some(encoder.finish()));
                 }
             }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::WindowEvent {
-                event:
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    },
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::WindowEvent {
-                event:
-                    WindowEvent::MouseInput {
-                        state,
-                        button: MouseButton::Left,
-                        ..
-                    },
-                ..
-            } => {
-                mouse_left_pressed = state == ElementState::Pressed;
-                if mouse_left_pressed {
-                    drag_start_x = cursor_x;
-                    drag_start_y = cursor_y;
-                    drag_end_x = cursor_x;
-                    drag_end_y = cursor_y;
-                    mouse_left_clicked = true;
+            WindowEvent::PointerMoved { position, .. } => {
+                self.cursor_x = position.x as f32;
+                self.cursor_y = position.y as f32;
+                if self.mouse_left_pressed {
+                    self.drag_end_x = self.cursor_x;
+                    self.drag_end_y = self.cursor_y;
                 }
             }
-            Event::WindowEvent {
-                event: WindowEvent::CursorMoved { position, .. },
-                ..
-            } => {
-                cursor_x = position.x as f32;
-                cursor_y = position.y as f32;
-                if mouse_left_pressed {
-                    drag_end_x = cursor_x;
-                    drag_end_y = cursor_y;
+            WindowEvent::PointerButton { state, button, .. } => {
+                if button.mouse_button() == MouseButton::Left {
+                    self.mouse_left_pressed = state == ElementState::Pressed;
+                    if self.mouse_left_pressed {
+                        self.drag_start_x = self.cursor_x;
+                        self.drag_start_y = self.cursor_y;
+                        self.drag_end_x = self.cursor_x;
+                        self.drag_end_y = self.cursor_y;
+                        self.mouse_left_clicked = true;
+                    }
                 }
             }
+            WindowEvent::MouseWheel { delta, .. } => {
+                if let winit::event::MouseScrollDelta::LineDelta(x, y) = delta {
+                    self.drag_end_x = x * 0.1;
+                    self.drag_end_y = y * 0.1;
+                }
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.logical_key == NamedKey::Escape && event.state == ElementState::Pressed {
+                    self.close_requested = true;
+                }
+            }
+            WindowEvent::RedrawRequested => self.render(),
             _ => {}
         }
-    });
+        if self.close_requested {
+            event_loop.exit();
+        } else if let Some(ws) = &self.window_surface {
+            ws.borrow_window().request_redraw();
+        }
+        event_loop.set_control_flow(ControlFlow::Poll);
+    }
+
+    fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
+        if self.close_requested {
+            event_loop.exit();
+        } else if let Some(ws) = &self.window_surface {
+            ws.borrow_window().request_redraw();
+        }
+        event_loop.set_control_flow(ControlFlow::Poll);
+    }
+
+    fn exiting(&mut self, _event_loop: &dyn ActiveEventLoop) {
+        self.device = None;
+    }
 }
 
-fn main() {
-    let event_loop = EventLoop::new();
-    let window = winit::window::WindowBuilder::new()
-        .with_title("Rust GPU - wgpu")
-        .with_inner_size(winit::dpi::LogicalSize::new(1280.0, 720.0))
-        .build(&event_loop)
-        .unwrap();
-
-    wgpu_subscriber::initialize_default_subscriber(None);
-    futures::executor::block_on(run(
-        wgpu::include_spirv!(env!("shadertoys_shaders.spv")),
-        event_loop,
-        window,
-        wgpu::TextureFormat::Bgra8UnormSrgb,
-    ));
+fn main() -> Result<(), Box<dyn Error>> {
+    let event_loop = EventLoop::new()?;
+    let mut app = ShaderToyApp::default();
+    event_loop.run_app(&mut app).map_err(Into::into)
 }

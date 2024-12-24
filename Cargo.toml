@@ -2,7 +2,7 @@
 name = "shadertoys-wgpu"
 version = "0.0.0"
 authors = []
-edition = "2018"
+edition = "2021"
 
 [features]
 default = ["use-compiled-tools"]
@@ -11,10 +11,15 @@ use-compiled-tools = ["spirv-builder/use-compiled-tools"]
 
 [dependencies]
 shared = { path = "shared" }
-futures = { version = "0.3", default-features = false, features = ["std", "executor"] }
-wgpu = "0.6.0"
-winit = { version = "0.23", features = ["web-sys"] }
-wgpu-subscriber = "0.1.0"
+futures = { version = "0.3", default-features = false, features = [
+    "std",
+    "executor"
+] }
+wgpu = { version = "23.0.1", features = ["spirv"] }
+winit = { git = "https://github.com/rust-windowing/winit.git", rev = "a0464ae83b880899b6fb5a25a2fe0d6447fd487a" }
+bytemuck = "1.20.0"
+env_logger = "0.11.6"
+ouroboros = "0.18.5"
 
 [build-dependencies]
 spirv-builder = { version = "*", default-features = false }
@@ -23,8 +28,10 @@ spirv-builder = { version = "*", default-features = false }
 members = ["shaders"]
 
 [patch.crates-io]
-spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", rev = "a173208d803aeac9295464df703c53d987db2664" }
-spirv-std = { git = "https://github.com/EmbarkStudios/rust-gpu", rev = "a173208d803aeac9295464df703c53d987db2664" }
+#spirv-builder = { path = "../rust-gpu/crates/spirv-builder" }
+spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "6e2c84d4fe64e32df4c060c5a7f3e35a32e45421" }
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "6e2c84d4fe64e32df4c060c5a7f3e35a32e45421" }
+
 
 # Compile build-dependencies in release mode with
 # the same settings as regular dependencies.
@@ -43,3 +50,6 @@ opt-level = 3
 # a long time (10 minutes if itself was optimized, over an hour otherwise).
 [profile.release.package."shadertoys-shaders"]
 opt-level = 0
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(target_arch, values("spirv"))'] }

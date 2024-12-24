@@ -1,10 +1,7 @@
 //! Ported to Rust from <https://www.shadertoy.com/view/llVXRd>
 
 use shared::*;
-use spirv_std::glam::{
-    const_mat2, const_vec2, const_vec3, vec2, vec3, Mat2, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4,
-    Vec4Swizzles,
-};
+use spirv_std::glam::{mat2, vec2, vec3, Mat2, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 
 // Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
 // we tie #[no_std] above to the same condition, so it's fine.
@@ -36,20 +33,20 @@ impl State {
     pub fn new(inputs: Inputs) -> State {
         State {
             inputs,
-            face_plane: Vec3::zero(),
-            u_plane: Vec3::zero(),
-            v_plane: Vec3::zero(),
-            nc: Vec3::zero(),
-            pab: Vec3::zero(),
-            pbc: Vec3::zero(),
-            pca: Vec3::zero(),
+            face_plane: Vec3::ZERO,
+            u_plane: Vec3::ZERO,
+            v_plane: Vec3::ZERO,
+            nc: Vec3::ZERO,
+            pab: Vec3::ZERO,
+            pbc: Vec3::ZERO,
+            pca: Vec3::ZERO,
             time: 0.0,
         }
     }
 }
 
-const MODEL_ROTATION: Vec2 = const_vec2!([0.3, 0.25]);
-const CAMERA_ROTATION: Vec2 = const_vec2!([0.5, 0.5]);
+const MODEL_ROTATION: Vec2 = vec2(0.3, 0.25);
+const CAMERA_ROTATION: Vec2 = vec2(0.5, 0.5);
 
 // 0: Defaults
 // 1: Model
@@ -92,7 +89,7 @@ fn smax(a: f32, b: f32, r: f32) -> f32 {
 // Adapted from knighty https://www.shadertoy.com/view/MsKGzw
 // --------------------------------------------------------
 
-const PI: f32 = 3.14159265359;
+use core::f32::consts::PI;
 
 const TYPE: i32 = 5;
 
@@ -131,8 +128,8 @@ impl State {
 const SQRT3: f32 = 1.7320508075688772;
 const I3: f32 = 0.5773502691896258;
 
-const CART2HEX: Mat2 = const_mat2!([1.0, 0.0, I3, 2.0 * I3]);
-const HEX2CART: Mat2 = const_mat2!([1.0, 0.0, -0.5, 0.5 * SQRT3]);
+const CART2HEX: Mat2 = mat2(vec2(1.0, 0.0), vec2(I3, 2.0 * I3));
+const HEX2CART: Mat2 = mat2(vec2(1.0, 0.0), vec2(-0.5, 0.5 * SQRT3));
 
 const _PHI: f32 = 1.618033988749895;
 const _TAU: f32 = 6.283185307179586;
@@ -200,7 +197,7 @@ struct TriPoints3D {
 
 fn intersection(n: Vec3, plane_normal: Vec3, plane_offset: f32) -> Vec3 {
     let denominator: f32 = plane_normal.dot(n);
-    let t: f32 = (Vec3::zero().dot(plane_normal) + plane_offset) / -denominator;
+    let t: f32 = (Vec3::ZERO.dot(plane_normal) + plane_offset) / -denominator;
     n * t
 }
 
@@ -450,9 +447,9 @@ impl State {
 // Modelling
 // --------------------------------------------------------
 
-const FACE_COLOR: Vec3 = const_vec3!([0.9, 0.9, 1.0]);
-const BACK_COLOR: Vec3 = const_vec3!([0.1, 0.1, 0.15]);
-const BACKGROUND_COLOR: Vec3 = const_vec3!([0.0, 0.005, 0.03]);
+const FACE_COLOR: Vec3 = vec3(0.9, 0.9, 1.0);
+const BACK_COLOR: Vec3 = vec3(0.1, 0.1, 0.15);
+const BACKGROUND_COLOR: Vec3 = vec3(0.0, 0.005, 0.03);
 
 #[derive(Clone, Copy, Default)]
 struct Model {
@@ -582,11 +579,11 @@ fn do_lighting(model: Model, _pos: Vec3, nor: Vec3, _ref: Vec3, rd: Vec3) -> Vec
     let bac: f32 = nor.dot(back_light_pos).clamp(0.0, 1.0).powf(1.5);
     let fre: f32 = (1.0 + nor.dot(rd)).clamp(0.0, 1.0).powf(2.0);
 
-    let mut lin: Vec3 = Vec3::zero();
+    let mut lin: Vec3 = Vec3::ZERO;
     lin += 1.20 * dif * Vec3::splat(0.9);
     lin += 0.80 * amb * vec3(0.5, 0.7, 0.8);
     lin += 0.30 * bac * Vec3::splat(0.25);
-    lin += 0.20 * fre * Vec3::one();
+    lin += 0.20 * fre * Vec3::ONE;
 
     let albedo: Vec3 = model.albedo;
     let col: Vec3 = mix(albedo * lin, albedo, model.glow);
@@ -657,9 +654,9 @@ impl State {
         }
 
         let mut is_background: bool = false;
-        let mut pos: Vec3 = Vec3::zero();
-        let mut normal: Vec3 = Vec3::zero();
-        let color: Vec3 = Vec3::zero();
+        let mut pos: Vec3 = Vec3::ZERO;
+        let mut normal: Vec3 = Vec3::ZERO;
+        let color: Vec3 = Vec3::ZERO;
 
         if ray.len > MAX_TRACE_DISTANCE {
             is_background = true;

@@ -1,9 +1,9 @@
-use spirv_builder::SpirvBuilder;
+use spirv_builder::{MetadataPrintout, SpirvBuilder};
 use std::error::Error;
 
-fn build_shader(path_to_create: &str) -> Result<(), Box<dyn Error>> {
-    SpirvBuilder::new(path_to_create)
-        .spirv_version(1, 0)
+fn build_shader(path_to_crate: &str) -> Result<(), Box<dyn Error>> {
+    let _result = SpirvBuilder::new(path_to_crate, "spirv-unknown-vulkan1.2")
+        .print_metadata(MetadataPrintout::Full)
         .build()?;
     Ok(())
 }

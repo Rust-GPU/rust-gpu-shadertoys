@@ -8,7 +8,7 @@
 //! // https://www.shadertoy.com/view/Msj3zD
 //! ```
 
-use spirv_std::glam::{const_vec4, vec2, vec4, Vec2, Vec3, Vec4};
+use spirv_std::glam::{vec2, vec4, Vec2, Vec3, Vec4};
 
 // Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
 // we tie #[no_std] above to the same condition, so it's fine.
@@ -31,7 +31,7 @@ impl State {
         State {
             inputs,
 
-            frag_color: Vec4::zero(),
+            frag_color: Vec4::ZERO,
         }
     }
 }
@@ -91,8 +91,7 @@ const PIPE_BOTTOM: f32 = 39.0; // px
 const PIPE_HOLE_HEIGHT: f32 = 12.0; // px
 
 // const PIPE_OUTLINE_COLOR: Vec4 = RGB(84, 56, 71);
-const PIPE_OUTLINE_COLOR: Vec4 =
-    const_vec4!([84 as f32 / 255.0, 56 as f32 / 255.0, 71 as f32 / 255.0, 1.0]);
+const PIPE_OUTLINE_COLOR: Vec4 = vec4(84 as f32 / 255.0, 56 as f32 / 255.0, 71 as f32 / 255.0, 1.0);
 
 // gameplay consts
 const HORZ_PIPE_DISTANCE: f32 = 100.0; // px;

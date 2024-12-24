@@ -1,11 +1,8 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
-#![feature(lang_items)]
-#![feature(register_attr)]
-#![register_attr(spirv)]
 
 use shared::*;
 use spirv_std::glam::{vec2, vec3, vec4, Vec2, Vec3, Vec4};
-use spirv_std::storage_class::{Input, Output, PushConstant};
+use spirv_std::spirv;
 
 pub mod a_lot_of_spheres;
 pub mod a_question_of_time;
@@ -79,14 +76,14 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
         constants.drag_start_x / COLS as f32,
         constants.drag_start_y / ROWS as f32,
     );
-    if mouse != Vec4::zero() {
+    if mouse != Vec4::ZERO {
         mouse.y = resolution.y - mouse.y;
         mouse.w = resolution.y - mouse.w;
     }
-    if !constants.mouse_left_pressed {
+    if !(constants.mouse_left_pressed == 1) {
         mouse.z *= -1.0;
     }
-    if !constants.mouse_left_clicked {
+    if !(constants.mouse_left_clicked == 1) {
         mouse.w *= -1.0;
     }
 
@@ -97,12 +94,12 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
     frag_coord.x %= resolution.x;
     frag_coord.y = resolution.y - frag_coord.y % resolution.y;
 
-    let mut color = Vec4::zero();
+    let mut color = Vec4::ZERO;
     match i {
         0 => two_tweets::Inputs { resolution, time }.main_image(&mut color, frag_coord),
         1 => heart::Inputs { resolution, time }.main_image(&mut color, frag_coord),
         2 => clouds::Inputs { resolution, time }.main_image(&mut color, frag_coord),
-        3 => mandelbrot_smooth::Inputs { resolution, time }.main_image(&mut color, frag_coord),
+        // 3 => mandelbrot_smooth::Inputs { resolution, time }.main_image(&mut color, frag_coord),
         4 => protean_clouds::State::new(protean_clouds::Inputs {
             resolution,
             time,
@@ -168,7 +165,7 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
                 alpha: 1.0,
                 intensity: 0.5,
             },
-            channel1: ConstantColor { color: Vec4::one() },
+            channel1: ConstantColor { color: Vec4::ONE },
         })
         .main_image(&mut color, frag_coord),
         18 => raymarching_primitives::Inputs {
@@ -232,29 +229,22 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
 #[allow(unused_attributes)]
 #[spirv(fragment)]
 pub fn main_fs(
-    #[spirv(frag_coord)] in_frag_coord: Input<Vec4>,
-    constants: PushConstant<ShaderConstants>,
-    mut output: Output<Vec4>,
+    #[spirv(frag_coord)] in_frag_coord: Vec4,
+    #[spirv(push_constant)] constants: &ShaderConstants,
+    output: &mut Vec4,
 ) {
-    let constants = constants.load();
-
-    let frag_coord = vec2(in_frag_coord.load().x, in_frag_coord.load().y);
-    let color = fs(&constants, frag_coord);
-    output.store(color);
+    let frag_coord = vec2(in_frag_coord.x, in_frag_coord.y);
+    let color = fs(constants, frag_coord);
+    *output = color;
 }
 
 #[allow(unused_attributes)]
 #[spirv(vertex)]
-pub fn main_vs(
-    #[spirv(vertex_index)] vert_idx: Input<i32>,
-    #[spirv(position)] mut builtin_pos: Output<Vec4>,
-) {
-    let vert_idx = vert_idx.load();
-
+pub fn main_vs(#[spirv(vertex_index)] vert_idx: i32, #[spirv(position)] builtin_pos: &mut Vec4) {
     // Create a "full screen triangle" by mapping the vertex index.
     // ported from https://www.saschawillems.de/blog/2016/08/13/vulkan-tutorial-on-rendering-a-fullscreen-quad-without-buffers/
     let uv = vec2(((vert_idx << 1) & 2) as f32, (vert_idx & 2) as f32);
-    let pos = 2.0 * uv - Vec2::one();
+    let pos = 2.0 * uv - Vec2::ONE;
 
-    builtin_pos.store(pos.extend(0.0).extend(1.0));
+    *builtin_pos = pos.extend(0.0).extend(1.0);
 }
