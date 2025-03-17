@@ -99,7 +99,7 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
         0 => two_tweets::Inputs { resolution, time }.main_image(&mut color, frag_coord),
         1 => heart::Inputs { resolution, time }.main_image(&mut color, frag_coord),
         2 => clouds::Inputs { resolution, time }.main_image(&mut color, frag_coord),
-        // 3 => mandelbrot_smooth::Inputs { resolution, time }.main_image(&mut color, frag_coord),
+        3 => mandelbrot_smooth::Inputs { resolution, time }.main_image(&mut color, frag_coord),
         4 => protean_clouds::State::new(protean_clouds::Inputs {
             resolution,
             time,
