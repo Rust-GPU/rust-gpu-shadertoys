@@ -2,7 +2,7 @@ use futures::executor::block_on;
 use ouroboros::self_referencing;
 use std::error::Error;
 use std::time::Instant;
-use wgpu;
+use wgpu::{self, InstanceDescriptor};
 use wgpu::{include_spirv, include_spirv_raw};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -70,7 +70,15 @@ impl ShaderToyApp {
             .with_title("Rust GPU - wgpu")
             .with_surface_size(LogicalSize::new(1280.0, 720.0));
         let window_box = event_loop.create_window(window_attributes)?;
-        let instance = wgpu::Instance::default();
+        let mut instance_flags = wgpu::InstanceFlags::default();
+        // Turn off validation as the shaders are trusted.
+        instance_flags.remove(wgpu::InstanceFlags::VALIDATION);
+        // Disable debugging info to speed things up.
+        instance_flags.remove(wgpu::InstanceFlags::DEBUG);
+        let instance = wgpu::Instance::new(&InstanceDescriptor {
+            flags: instance_flags,
+            ..Default::default()
+        });
 
         let window_surface = WindowSurfaceBuilder {
             window: window_box,
