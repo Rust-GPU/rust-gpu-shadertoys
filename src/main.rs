@@ -1,9 +1,9 @@
 use futures::executor::block_on;
 use ouroboros::self_referencing;
-use std::borrow::Cow;
 use std::error::Error;
 use std::time::Instant;
 use wgpu;
+use wgpu::{include_spirv, include_spirv_raw};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, WindowEvent};
@@ -62,6 +62,8 @@ impl Default for ShaderToyApp {
     }
 }
 
+pub const USE_SPIRV_PASSTHROUGH: bool = true;
+
 impl ShaderToyApp {
     async fn init(&mut self, event_loop: &dyn ActiveEventLoop) -> Result<(), Box<dyn Error>> {
         let window_attributes = WindowAttributes::default()
@@ -91,7 +93,10 @@ impl ShaderToyApp {
             })
             .await
             .ok_or("No adapter found")?;
-        let required_features = wgpu::Features::PUSH_CONSTANTS;
+        let mut required_features = wgpu::Features::PUSH_CONSTANTS;
+        if USE_SPIRV_PASSTHROUGH {
+            required_features |= wgpu::Features::SPIRV_SHADER_PASSTHROUGH;
+        }
         let required_limits = wgpu::Limits {
             max_push_constant_size: 256,
             ..Default::default()
@@ -107,12 +112,14 @@ impl ShaderToyApp {
                 None,
             )
             .await?;
-        let shader_bytes = include_bytes!(env!("shadertoys_shaders.spv"));
-        let shader_spirv: &[u32] = bytemuck::cast_slice(shader_bytes);
-        let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Shader Module"),
-            source: wgpu::ShaderSource::SpirV(Cow::Borrowed(shader_spirv)),
-        });
+        let shader_module = if USE_SPIRV_PASSTHROUGH {
+            unsafe {
+                device
+                    .create_shader_module_spirv(&include_spirv_raw!(env!("shadertoys_shaders.spv")))
+            }
+        } else {
+            device.create_shader_module(include_spirv!(env!("shadertoys_shaders.spv")))
+        };
         let swapchain_format = surface.get_capabilities(&adapter).formats[0];
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,

@@ -29,8 +29,8 @@ members = ["shaders", "shared"]
 
 [patch.crates-io]
 #spirv-builder = { path = "../rust-gpu/crates/spirv-builder" }
-spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "6e2c84d4fe64e32df4c060c5a7f3e35a32e45421" }
-spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "6e2c84d4fe64e32df4c060c5a7f3e35a32e45421" }
+spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "3417d2487f0b0066764ca74bbec2556e12c7d4fb" }
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "3417d2487f0b0066764ca74bbec2556e12c7d4fb" }
 
 
 # Compile build-dependencies in release mode with
