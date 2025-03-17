@@ -25,7 +25,7 @@ ouroboros = "0.18.5"
 spirv-builder = { version = "*", default-features = false }
 
 [workspace]
-members = ["shaders"]
+members = ["shaders", "shared"]
 
 [patch.crates-io]
 #spirv-builder = { path = "../rust-gpu/crates/spirv-builder" }

@@ -5,7 +5,7 @@ authors = []
 edition = "2021"
 
 [dependencies]
-spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "6e2c84d4fe64e32df4c060c5a7f3e35a32e45421" }
+spirv-std = { version = "*" }
 bytemuck = { version = "1.20.0", features = ["derive"] }
 
 [lints]
