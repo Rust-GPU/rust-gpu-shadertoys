@@ -5,7 +5,7 @@ authors = []
 edition = "2021"
 
 [dependencies]
-spirv-std = { version = "*" }
+spirv-std.workspace = true
 bytemuck = { version = "1.20.0", features = ["derive"] }
 
 [lints]

@@ -15,23 +15,21 @@ futures = { version = "0.3", default-features = false, features = [
     "std",
     "executor"
 ] }
-wgpu = { version = "23.0.1", features = ["spirv"] }
+wgpu = { version = "24.0.1", features = ["spirv", "vulkan-portability"] }
 winit = { git = "https://github.com/rust-windowing/winit.git", rev = "a0464ae83b880899b6fb5a25a2fe0d6447fd487a" }
 bytemuck = "1.20.0"
 env_logger = "0.11.6"
 ouroboros = "0.18.5"
 
 [build-dependencies]
-spirv-builder = { version = "*", default-features = false }
+spirv-builder.workspace = true
 
 [workspace]
 members = ["shaders", "shared"]
 
-[patch.crates-io]
-#spirv-builder = { path = "../rust-gpu/crates/spirv-builder" }
-spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "3417d2487f0b0066764ca74bbec2556e12c7d4fb" }
+[workspace.dependencies]
+spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "3417d2487f0b0066764ca74bbec2556e12c7d4fb", default-features = false }
 spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "3417d2487f0b0066764ca74bbec2556e12c7d4fb" }
-
 
 # Compile build-dependencies in release mode with
 # the same settings as regular dependencies.
@@ -52,4 +50,6 @@ opt-level = 3
 opt-level = 0
 
 [workspace.lints.rust]
-unexpected_cfgs = { level = "allow", check-cfg = ['cfg(target_arch, values("spirv"))'] }
+unexpected_cfgs = { level = "allow", check-cfg = [
+    'cfg(target_arch, values("spirv"))'
+] }

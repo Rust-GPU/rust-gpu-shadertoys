@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["dylib"]
 
 [dependencies]
-spirv-std = { version = "*" }
+spirv-std.workspace = true
 shared = { path = "../shared" }
 
 [lints]
