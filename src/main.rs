@@ -62,8 +62,6 @@ impl Default for ShaderToyApp {
     }
 }
 
-pub const USE_SPIRV_PASSTHROUGH: bool = true;
-
 impl ShaderToyApp {
     async fn init(&mut self, event_loop: &dyn ActiveEventLoop) -> Result<(), Box<dyn Error>> {
         let window_attributes = WindowAttributes::default()
@@ -102,7 +100,10 @@ impl ShaderToyApp {
             .await
             .ok_or("No adapter found")?;
         let mut required_features = wgpu::Features::PUSH_CONSTANTS;
-        if USE_SPIRV_PASSTHROUGH {
+        if adapter
+            .features()
+            .contains(wgpu::Features::SPIRV_SHADER_PASSTHROUGH)
+        {
             required_features |= wgpu::Features::SPIRV_SHADER_PASSTHROUGH;
         }
         let required_limits = wgpu::Limits {
@@ -120,7 +121,10 @@ impl ShaderToyApp {
                 None,
             )
             .await?;
-        let shader_module = if USE_SPIRV_PASSTHROUGH {
+        let shader_module = if device
+            .features()
+            .contains(wgpu::Features::SPIRV_SHADER_PASSTHROUGH)
+        {
             unsafe {
                 device
                     .create_shader_module_spirv(&include_spirv_raw!(env!("shadertoys_shaders.spv")))
