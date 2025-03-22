@@ -349,6 +349,7 @@ impl ApplicationHandler for ShaderToyApp {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
     let event_loop = EventLoop::new()?;
     let mut app = ShaderToyApp::default();
     event_loop.run_app(&mut app).map_err(Into::into)
