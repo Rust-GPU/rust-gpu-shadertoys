@@ -4,6 +4,13 @@ version = "0.0.0"
 authors = []
 edition = "2021"
 
+[features]
+# Enable shaders that are broken due to https://github.com/gfx-rs/wgpu/issues/7358.
+broken-on-naga = []
+# Enable shaders that are broken on metal even after landing
+# https://github.com/gfx-rs/wgpu/pull/7397.
+broken-on-metal = []
+
 [lib]
 crate-type = ["dylib"]
 

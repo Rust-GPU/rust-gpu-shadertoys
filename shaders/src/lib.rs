@@ -99,6 +99,7 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
         0 => two_tweets::Inputs { resolution, time }.main_image(&mut color, frag_coord),
         1 => heart::Inputs { resolution, time }.main_image(&mut color, frag_coord),
         2 => clouds::Inputs { resolution, time }.main_image(&mut color, frag_coord),
+        #[cfg(feature = "broken-on-naga")]
         3 => mandelbrot_smooth::Inputs { resolution, time }.main_image(&mut color, frag_coord),
         4 => protean_clouds::State::new(protean_clouds::Inputs {
             resolution,
@@ -151,12 +152,14 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
             mouse,
         })
         .main_image(&mut color, frag_coord),
+        #[cfg(feature = "broken-on-naga")]
         16 => morphing::State::new(morphing::Inputs {
             resolution,
             time,
             mouse,
         })
         .main_image(&mut color, frag_coord),
+        #[cfg(feature = "broken-on-naga")]
         17 => bubble_buckey_balls::State::new(bubble_buckey_balls::Inputs {
             resolution,
             time,
@@ -168,6 +171,7 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
             channel1: ConstantColor { color: Vec4::ONE },
         })
         .main_image(&mut color, frag_coord),
+        #[cfg(feature = "broken-on-naga")]
         18 => raymarching_primitives::Inputs {
             resolution,
             frame: (time * 60.0) as i32,
@@ -186,6 +190,7 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
             },
         })
         .main_image(&mut color, frag_coord),
+        #[cfg(feature = "broken-on-metal")]
         21 => filtering_procedurals::Inputs {
             resolution,
             time,
@@ -200,6 +205,7 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
         .main_image(&mut color, frag_coord),
         23 => flappy_bird::State::new(flappy_bird::Inputs { resolution, time })
             .main_image(&mut color, frag_coord),
+        #[cfg(feature = "broken-on-naga")]
         24 => {
             tokyo::State::new(tokyo::Inputs { resolution, time }).main_image(&mut color, frag_coord)
         }
