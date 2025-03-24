@@ -1,6 +1,7 @@
 [package]
 name = "shadertoys-wgpu"
 version = "0.0.0"
+publish = false
 authors = []
 edition = "2021"
 
@@ -16,7 +17,7 @@ futures = { version = "0.3", default-features = false, features = [
     "executor"
 ] }
 wgpu = { version = "24.0.1", features = ["spirv", "vulkan-portability"] }
-winit = { git = "https://github.com/rust-windowing/winit.git", rev = "a0464ae83b880899b6fb5a25a2fe0d6447fd487a" }
+winit = { git = "https://github.com/rust-windowing/winit.git", rev = "cdbdd974fbf79b82b3fb1a4bc84ed717312a3bd2" }
 bytemuck = "1.20.0"
 env_logger = "0.11.6"
 ouroboros = "0.18.5"
@@ -28,8 +29,8 @@ spirv-builder.workspace = true
 members = ["shaders", "shared"]
 
 [workspace.dependencies]
-spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "3417d2487f0b0066764ca74bbec2556e12c7d4fb", default-features = false }
-spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "3417d2487f0b0066764ca74bbec2556e12c7d4fb" }
+spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "05042d1713012862be103e85bfd2c15dfeccda7b", default-features = false }
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "05042d1713012862be103e85bfd2c15dfeccda7b" }
 
 # Compile build-dependencies in release mode with
 # the same settings as regular dependencies.

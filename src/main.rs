@@ -342,10 +342,6 @@ impl ApplicationHandler for ShaderToyApp {
         }
         event_loop.set_control_flow(ControlFlow::Poll);
     }
-
-    fn exiting(&mut self, _event_loop: &dyn ActiveEventLoop) {
-        self.device = None;
-    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
