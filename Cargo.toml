@@ -16,7 +16,10 @@ futures = { version = "0.3", default-features = false, features = [
     "std",
     "executor"
 ] }
-wgpu = { version = "24.0.1", features = ["spirv", "vulkan-portability"] }
+wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "c7c79a0dc9356081a884b5518d1c08ce7a09c7c5", features = [
+    "spirv",
+    "vulkan-portability"
+] }
 winit = { git = "https://github.com/rust-windowing/winit.git", rev = "cdbdd974fbf79b82b3fb1a4bc84ed717312a3bd2" }
 bytemuck = "1.20.0"
 env_logger = "0.11.6"

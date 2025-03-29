@@ -97,8 +97,7 @@ impl ShaderToyApp {
                 compatible_surface: Some(surface),
                 force_fallback_adapter: false,
             })
-            .await
-            .ok_or("No adapter found")?;
+            .await?;
         let mut required_features = wgpu::Features::PUSH_CONSTANTS;
         if adapter
             .features()
@@ -111,15 +110,12 @@ impl ShaderToyApp {
             ..Default::default()
         };
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    required_features,
-                    required_limits,
-                    ..Default::default()
-                },
-                None,
-            )
+            .request_device(&wgpu::DeviceDescriptor {
+                label: None,
+                required_features,
+                required_limits,
+                ..Default::default()
+            })
             .await?;
         let shader_module = if device
             .features()

@@ -6,8 +6,7 @@ fn build_shader(path_to_crate: &str) -> Result<(), Box<dyn Error>> {
         .print_metadata(MetadataPrintout::Full);
 
     #[cfg(not(target_os = "macos"))]
-    let builder = builder
-        .shader_crate_features(["broken-on-metal".to_string(), "broken-on-naga".to_string()]);
+    let builder = builder.shader_crate_features(["broken-on-metal".to_string()]);
 
     let _result = builder.build()?;
     Ok(())
