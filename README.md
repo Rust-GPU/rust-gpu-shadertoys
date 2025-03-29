@@ -10,4 +10,4 @@ Individual shaders are licensed according to the original [shadertoy.com] entry
 (see each file's documentation comment for more details).
 
 [shadertoy.com]: https://shadertoy.com
-[Rust-GPU]: https://github.com/EmbarkStudios/rust-gpu
+[Rust-GPU]: https://github.com/rust-gpu/rust-gpu
