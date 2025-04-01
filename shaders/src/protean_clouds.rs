@@ -28,7 +28,7 @@
 
 use shared::*;
 use spirv_std::glam::{
-    const_mat3, vec2, vec3, vec4, Mat2, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
+    mat3, vec2, vec3, vec4, Mat2, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
 };
 
 // Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
@@ -53,7 +53,7 @@ impl State {
         State {
             inputs,
             prm1: 0.0,
-            bs_mo: Vec2::zero(),
+            bs_mo: Vec2::ZERO,
         }
     }
 }
@@ -68,17 +68,11 @@ fn rot(a: f32) -> Mat2 {
 //     0.33338, 0.56034, -0.71817, -0.87887, 0.32651, -0.15323, 0.15162, 0.69596, 0.61339
 // ]) * 1.93;
 
-const M3: Mat3 = const_mat3!([
-    0.33338 * 1.93,
-    0.56034 * 1.93,
-    -0.71817 * 1.93,
-    -0.87887 * 1.93,
-    0.32651 * 1.93,
-    -0.15323 * 1.93,
-    0.15162 * 1.93,
-    0.69596 * 1.93,
-    0.61339 * 1.93
-]);
+const M3: Mat3 = mat3(
+    Vec3::new(0.33338 * 1.93, -0.87887 * 1.93, 0.15162 * 1.93),
+    Vec3::new(0.56034 * 1.93, 0.32651 * 1.93, 0.69596 * 1.93),
+    Vec3::new(-0.71817 * 1.93, -0.15323 * 1.93, 0.61339 * 1.93),
+);
 
 fn mag2(p: Vec2) -> f32 {
     p.dot(p)
@@ -122,7 +116,7 @@ impl State {
     }
 
     fn render(&self, ro: Vec3, rd: Vec3, time: f32) -> Vec4 {
-        let mut rez: Vec4 = Vec4::zero();
+        let mut rez: Vec4 = Vec4::ZERO;
         const LDST: f32 = 8.0;
         let _lpos: Vec3 = (disp(time + LDST) * 0.5).extend(time + LDST);
         let mut t: f32 = 1.5;
@@ -139,7 +133,7 @@ impl State {
             let den: f32 = (mpv.x - 0.3).clamp(0.0, 1.0) * 1.12;
             let dn: f32 = (mpv.x + 2.0).clamp(0.0, 3.0);
 
-            let mut col: Vec4 = Vec4::zero();
+            let mut col: Vec4 = Vec4::ZERO;
             if mpv.x > 0.6 {
                 col = ((vec3(5.0, 0.4, 0.2)
                     + Vec3::splat(mpv.y * 0.1 + (pos.z * 0.4).sin() * 0.5 + 1.8))
@@ -167,7 +161,7 @@ impl State {
             i += 1;
         }
 
-        rez.clamp(Vec4::zero(), Vec4::one())
+        rez.clamp(Vec4::ZERO, Vec4::ONE)
     }
 }
 
@@ -190,7 +184,7 @@ fn i_lerp(a: Vec3, b: Vec3, x: f32) -> Vec3 {
     let lgt: f32 = Vec3::splat(1.0).dot(ic);
     let ff: f32 = dir.dot(ic.normalize());
     ic += 1.5 * dir * sd * ff * lgt;
-    ic.clamp(Vec3::zero(), Vec3::one())
+    ic.clamp(Vec3::ZERO, Vec3::ONE)
 }
 
 impl State {

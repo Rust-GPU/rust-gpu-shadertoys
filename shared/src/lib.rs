@@ -1,11 +1,9 @@
 //! Ported to Rust from https://github.com/Tw1ddle/Sky-Shader/blob/master/src/shaders/glsl/sky.fragment
 
 #![cfg_attr(target_arch = "spirv", no_std)]
-#![feature(lang_items)]
-#![feature(register_attr)]
-#![register_attr(spirv)]
-#![feature(asm)]
+#![feature(asm_experimental_arch)]
 
+use bytemuck::{Pod, Zeroable};
 use core::f32::consts::PI;
 use core::ops::{Add, Mul, Sub};
 use spirv_std::glam::{vec2, vec3, vec4, Vec2, Vec3, Vec3A, Vec4};
@@ -15,9 +13,9 @@ use spirv_std::glam::{vec2, vec3, vec4, Vec2, Vec3, Vec3A, Vec4};
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-#[derive(Copy, Clone)]
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
 #[allow(unused_attributes)]
-#[spirv(block)]
 pub struct ShaderConstants {
     pub width: u32,
     pub height: u32,
@@ -28,8 +26,8 @@ pub struct ShaderConstants {
     pub drag_start_y: f32,
     pub drag_end_x: f32,
     pub drag_end_y: f32,
-    pub mouse_left_pressed: bool,
-    pub mouse_left_clicked: bool,
+    pub mouse_left_pressed: u32,
+    pub mouse_left_clicked: u32,
 }
 
 pub fn saturate(x: f32) -> f32 {
@@ -367,7 +365,7 @@ pub trait Derivative {
 #[cfg(target_arch = "spirv")]
 macro_rules! deriv_caps {
     (true) => {
-        asm!("OpCapability DerivativeControl")
+        core::arch::asm!("OpCapability DerivativeControl")
     };
     (false) => {};
 }
@@ -381,7 +379,7 @@ macro_rules! deriv_fn {
             unsafe {
                 let mut result = Default::default();
                 deriv_caps!($needs_caps);
-                asm!(
+                core::arch::asm!(
                     "%input = OpLoad typeof*{1} {1}",
                     concat!("%result = ", stringify!($inst), " typeof*{1} %input"),
                     "OpStore {0} %result",
@@ -448,6 +446,7 @@ impl Derivative for Vec3 {
 pub fn discard() {
     #[cfg(target_arch = "spirv")]
     unsafe {
+        use core::arch::asm;
         asm!(
             "OpExtension \"SPV_EXT_demote_to_helper_invocation\"",
             "OpCapability DemoteToHelperInvocationEXT",

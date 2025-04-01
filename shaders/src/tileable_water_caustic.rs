@@ -26,7 +26,7 @@ pub struct Inputs {
 // Redefine below to see the tiling...
 const SHOW_TILING: bool = false;
 
-const TAU: f32 = 6.28318530718;
+use core::f32::consts::TAU;
 const MAX_ITER: usize = 5;
 
 impl Inputs {
@@ -36,9 +36,9 @@ impl Inputs {
         let mut uv: Vec2 = frag_coord / self.resolution.xy();
 
         let p: Vec2 = if SHOW_TILING {
-            (uv * TAU * 2.0).rem_euclid(TAU) - Vec2::splat(250.0)
+            (uv * TAU * 2.0).rem_euclid(Vec2::splat(TAU)) - Vec2::splat(250.0)
         } else {
-            (uv * TAU).rem_euclid(TAU) - Vec2::splat(250.0)
+            (uv * TAU).rem_euclid(Vec2::splat(TAU)) - Vec2::splat(250.0)
         };
         let mut i: Vec2 = p;
         let mut c: f32 = 1.0;
@@ -62,7 +62,7 @@ impl Inputs {
         c /= MAX_ITER as f32;
         c = 1.17 - c.powf(1.4);
         let mut colour: Vec3 = Vec3::splat(c.abs().powf(8.0));
-        colour = (colour + vec3(0.0, 0.35, 0.5)).clamp(Vec3::zero(), Vec3::one());
+        colour = (colour + vec3(0.0, 0.35, 0.5)).clamp(Vec3::ZERO, Vec3::ONE);
 
         if SHOW_TILING {
             let pixel: Vec2 = 2.0 / self.resolution.xy();

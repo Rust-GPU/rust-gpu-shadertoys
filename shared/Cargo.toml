@@ -2,7 +2,11 @@
 name = "shared"
 version = "0.0.0"
 authors = []
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-spirv-std = "*"
+spirv-std.workspace = true
+bytemuck = { version = "1.20.0", features = ["derive"] }
+
+[lints]
+workspace = true
