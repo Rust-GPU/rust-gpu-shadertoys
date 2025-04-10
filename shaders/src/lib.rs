@@ -186,7 +186,6 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
             },
         })
         .main_image(&mut color, frag_coord),
-        #[cfg(feature = "broken-on-metal")]
         21 => filtering_procedurals::Inputs {
             resolution,
             time,

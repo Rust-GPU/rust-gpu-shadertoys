@@ -121,9 +121,11 @@ impl ShaderToyApp {
             .features()
             .contains(wgpu::Features::SPIRV_SHADER_PASSTHROUGH)
         {
+            let x = include_spirv_raw!(env!(
+                "shadertoys_shaders.spv"
+            ));
             unsafe {
-                device
-                    .create_shader_module_spirv(&include_spirv_raw!(env!("shadertoys_shaders.spv")))
+                device.create_shader_module_passthrough(x)
             }
         } else {
             device.create_shader_module(include_spirv!(env!("shadertoys_shaders.spv")))
