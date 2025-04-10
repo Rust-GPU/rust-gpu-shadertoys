@@ -444,13 +444,5 @@ impl Derivative for Vec3 {
 }
 
 pub fn discard() {
-    #[cfg(target_arch = "spirv")]
-    unsafe {
-        use core::arch::asm;
-        asm!(
-            "OpExtension \"SPV_EXT_demote_to_helper_invocation\"",
-            "OpCapability DemoteToHelperInvocationEXT",
-            "OpDemoteToHelperInvocationEXT"
-        );
-    }
+    unsafe { spirv_std::arch::demote_to_helper_invocation() }
 }
