@@ -11,6 +11,7 @@
 //! */
 //! ```
 
+use spirv_std::arch::Derivative;
 use crate::SampleCube;
 use shared::*;
 use spirv_std::glam::{vec2, vec3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
@@ -770,8 +771,8 @@ impl<C0: SampleCube> State<C0> {
             let mut window_ref: f32 = 0.0;
             // texture map the sides of buildings
             if (normal.y < 0.1) && (dist_and_mat.y == 0.0) {
-                let posdx: Vec3 = pos.ddx();
-                let posdy: Vec3 = pos.ddy();
+                let posdx: Vec3 = pos.dfdx();
+                let posdy: Vec3 = pos.dfdy();
                 let _pos_grad: Vec3 = posdx * hash21(uv) + posdy * hash21(uv * 7.6543);
 
                 // Quincunx antialias the building texture and normal map.
@@ -930,7 +931,7 @@ impl<C0: SampleCube> State<C0> {
             if dist_and_mat.y >= 100.0 {
                 let mut yfade: f32 = 0.01_f32.max(1.0_f32.min(ref_.y * 100.0));
                 // low-res way of making lines at the edges of car windows. Not sure I like it.
-                yfade *= saturate(1.0 - (window_mask.ddx() * window_mask.ddy()).abs() * 250.995);
+                yfade *= saturate(1.0 - (window_mask.dfdx() * window_mask.dfdy()).abs() * 250.995);
                 final_color += self.get_env_map_skyline(ref_, self.sun_dir, pos.y - 1.5)
                     * 0.3
                     * yfade

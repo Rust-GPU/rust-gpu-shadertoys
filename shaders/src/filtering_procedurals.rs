@@ -19,6 +19,7 @@
 //! */
 //! ```
 
+use spirv_std::arch::Derivative;
 use shared::*;
 use spirv_std::glam::{vec2, vec3, vec4, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 
@@ -400,8 +401,8 @@ impl Inputs {
                 uvw = tex_coords(pos);
 
                 // calc texture sampling footprint
-                ddx_uvw = uvw + uvw.ddx();
-                ddy_uvw = uvw + uvw.ddy();
+                ddx_uvw = uvw + uvw.dfdx();
+                ddy_uvw = uvw + uvw.dfdy();
             }
             // shading
             let mate: Vec3;
