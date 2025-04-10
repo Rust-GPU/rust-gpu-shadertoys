@@ -1,6 +1,6 @@
 # [shadertoy.com] shaders ported to [Rust-GPU]
 
-![First 12 ported shadertoys](12.png)
+![shadertoys image](shadertoys.jpg)
 
 ## License
 
