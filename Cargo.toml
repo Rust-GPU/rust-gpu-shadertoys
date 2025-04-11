@@ -16,7 +16,7 @@ futures = { version = "0.3", default-features = false, features = [
     "std",
     "executor"
 ] }
-wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "8010203281d2f7c1accf8bfcc24de399278b9562", features = [
+wgpu = { version = "25.0.0", features = [
     "spirv",
     "vulkan-portability"
 ] }
