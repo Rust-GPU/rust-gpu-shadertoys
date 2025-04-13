@@ -148,8 +148,7 @@ fn get_sun_light(ray: Ray, optical_depth_r: &mut f32, optical_depth_m: &mut f32)
     let mut march_pos: f32 = 0.0;
     let march_step: f32 = t1 / NUM_SAMPLES_LIGHT as f32;
 
-    let mut i = 0;
-    while i < NUM_SAMPLES_LIGHT {
+    for _ in 0..NUM_SAMPLES_LIGHT {
         let s: Vec3 = ray.origin + ray.direction * (march_pos + 0.5 * march_step);
         let height: f32 = s.length() - EARTH_RADIUS;
         if height < 0.0 {
@@ -160,7 +159,6 @@ fn get_sun_light(ray: Ray, optical_depth_r: &mut f32, optical_depth_m: &mut f32)
         *optical_depth_m += (-height / H_M).exp() * march_step;
 
         march_pos += march_step;
-        i += 1;
     }
     true
 }
@@ -202,8 +200,7 @@ impl State {
         let mut sum_m: Vec3 = Vec3::ZERO;
         let mut march_pos: f32 = 0.0;
 
-        let mut i = 0;
-        while i < NUM_SAMPLES {
+        for _ in 0..NUM_SAMPLES {
             let s: Vec3 = ray.origin + ray.direction * (march_pos + 0.5 * march_step);
             let height: f32 = s.length() - EARTH_RADIUS;
 
@@ -236,7 +233,6 @@ impl State {
             }
 
             march_pos += march_step;
-            i += 1;
         }
 
         SUN_POWER * (sum_r * phase_r * BETA_R + sum_m * phase_m * BETA_M)

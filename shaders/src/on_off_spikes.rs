@@ -100,12 +100,11 @@ fn noise2(mut x: Vec2) -> f32 {
     let shift: Vec2 = Vec2::splat(100.0);
     let rot: Mat2 =
         Mat2::from_cols_array(&[0.5_f32.cos(), 0.5_f32.sin(), -0.5_f32.sin(), 0.50_f32.cos()]);
-    let mut i = 0;
-    while i < NUM_OCTAVES {
+
+    for _ in 0..NUM_OCTAVES {
         v += a * noise_vec2(x);
         x = rot * x * 2.0 + shift;
         a *= 0.5;
-        i += 1;
     }
     v
 }
@@ -239,8 +238,7 @@ impl State {
         }
 
         if BUMPS {
-            let mut i = 0;
-            while i < NUM_BUMPS {
+            for i in 0..NUM_BUMPS {
                 d2 = i as f32;
                 d1 = sd_sphere(
                     p - 0.18
@@ -255,7 +253,6 @@ impl State {
 
                 d = smin(d1, d, 0.2);
                 //d = min(d1, d);
-                i += 1;
             }
         }
 
@@ -352,8 +349,7 @@ impl State {
         let mut dist: f32 = 0.0;
 
         // raymarch scene
-        let mut i = 0;
-        while i < 60 {
+        for _ in 0..60 {
             h = self.scene(ray);
 
             if h.d < 0.0001 {
@@ -367,7 +363,6 @@ impl State {
                 dist = self.far;
                 break;
             }
-            i += 1;
         }
 
         let m: f32 = 1.0 - dist / self.far;
@@ -395,14 +390,12 @@ impl State {
             let sun_dist: f32 = (SUN_POS - ray1).length();
             dist = 0.0;
 
-            let mut i = 0;
-            while i < 35 {
+            for _ in 0..35 {
                 h = self.scene(ray1 + dir * dist);
                 dist += h.d;
                 if h.d.abs() < 0.001 {
                     break;
                 }
-                i += 1;
             }
 
             col -= Vec3::splat(
@@ -418,14 +411,12 @@ impl State {
             let sphere_dist: f32 = (ray.length() - 0.3).max(0.0001);
             dist = 0.0;
 
-            let mut i = 0;
-            while i < 35 {
+            for _ in 0..35 {
                 h = self.scene(ray + dir * dist);
                 dist += h.d;
                 if h.d.abs() < 0.001 {
                     break;
                 }
-                i += 1;
             }
 
             let neb1: Vec3 = nebula(rotation(0.0, self.inputs.time * 0.4).transpose() * dir).zxy();

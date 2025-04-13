@@ -243,8 +243,7 @@ impl<C0, C1> State<C0, C1> {
         let mut dist: f32 = 10.0 * epsilon;
         let mut t: f32 = 0.0;
         let mut material: f32 = 0.0;
-        let mut i = 0;
-        while i < DISTMARCH_STEPS {
+        for _ in 0..DISTMARCH_STEPS {
             if dist.abs() < epsilon || t > maxd {
                 break;
             }
@@ -253,7 +252,6 @@ impl<C0, C1> State<C0, C1> {
             let dfresult: Vec2 = self.scenedf(ro + t * rd);
             dist = dfresult.x;
             material = dfresult.y;
-            i += 1;
         }
 
         if t > maxd {
@@ -274,14 +272,12 @@ impl<C0, C1> State<C0, C1> {
         let mut shadow: f32 = 1.0;
         let mut t: f32 = mint;
 
-        let mut i = 0;
-        while i < SOFTSHADOW_STEPS {
+        for _ in 0..SOFTSHADOW_STEPS {
             if t < maxt {
                 let h: f32 = self.scenedf(ro + rd * t).x;
                 shadow = shadow.min(k * h / t);
                 t += SOFTSHADOW_STEPSIZE;
             }
-            i += 1;
         }
         shadow.clamp(0.0, 1.0)
     }
@@ -296,15 +292,13 @@ impl<C0, C1> State<C0, C1> {
         let mut ao: f32 = 0.0;
         let mut aoscale: f32 = 1.0;
 
-        let mut aoi = 0;
-        while aoi < AO_NUMSAMPLES {
+        for aoi in 0..AO_NUMSAMPLES {
             let step: f32 = 0.01 + AO_STEPSIZE * aoi as f32;
             let aop: Vec3 = n * step + p;
 
             let d: f32 = self.scenedf(aop).x;
             ao += -(d - step) * aoscale;
             aoscale *= AO_STEPSCALE;
-            aoi += 1;
         }
 
         ao.clamp(0.0, 1.0)

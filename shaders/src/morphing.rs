@@ -248,14 +248,12 @@ impl State {
 
         // Ray marching
         t = 0.0;
-        let mut i = 0;
-        while i < 48 {
+        for _ in 0..48 {
             if h < 0.0001 || t > 4.7 {
                 break;
             }
             h = self.m(o + d * t);
             t += h;
-            i += 1;
         }
 
         // Background colour change as teapot complementaries colours (using HSV)
@@ -271,11 +269,9 @@ impl State {
             n = self.normal(x, d, t); //normalize(vec3(M(x+E.yxx)-M(x-E.yxx),M(x+E)-M(x-E),M(x+E.xxy)-M(x-E.xxy)));
 
             // Calculate Shadows
-            let mut i = 0;
-            while i < 20 {
+            for _ in 0..20 {
                 j += 0.02;
                 s = s.min(self.m(x + self.l * j) / j);
-                i += 1;
             }
             // Teapot color rotation in HSV color space
             let c1: Vec3 = hsv2rgb_smooth(0.9 + self.inputs.time * 0.02, 1.0, 1.0);

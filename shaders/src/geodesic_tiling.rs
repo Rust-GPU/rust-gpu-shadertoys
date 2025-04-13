@@ -642,15 +642,13 @@ impl State {
             len: 0.0,
         };
 
-        let mut i = 0;
-        while i < NUM_OF_TRACE_STEPS {
+        for _ in 0..NUM_OF_TRACE_STEPS {
             if current_dist < INTERSECTION_PRECISION || ray.len > MAX_TRACE_DISTANCE {
                 break;
             }
             model = self.map(ray.origin + ray.direction * ray.len);
             current_dist = model.dist;
             ray.len += current_dist * FUDGE_FACTOR;
-            i += 1;
         }
 
         let mut is_background: bool = false;

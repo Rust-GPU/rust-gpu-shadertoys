@@ -624,8 +624,7 @@ impl Inputs {
 
         let mut res: f32 = 1.0;
         let mut t: f32 = mint;
-        let mut i = self.zero();
-        while i < 24 {
+        for _ in 0..24 {
             let h: f32 = map(ro + rd * t).x;
             let s: f32 = (8.0 * h / t).clamp(0.0, 1.0);
             res = res.min(s * s * (3.0 - 2.0 * s));
@@ -633,7 +632,6 @@ impl Inputs {
             if res < 0.004 || t > tmax {
                 break;
             }
-            i += 1;
         }
         res.clamp(0.0, 1.0)
     }
@@ -650,8 +648,7 @@ impl Inputs {
         } else {
             // inspired by tdhooper and klems - a way to prevent the compiler from inlining map() 4 times
             let mut n: Vec3 = Vec3::ZERO;
-            let mut i = self.zero();
-            while i < 4 {
+            for i in 0..4 {
                 let e: Vec3 = 0.5773
                     * (2.0
                         * vec3(
@@ -662,7 +659,6 @@ impl Inputs {
                         - Vec3::ONE);
                 n += e * map(pos + 0.0005 * e).x;
                 //if n.x+n.y+n.z>100.0 {break;}
-                i += 1;
             }
             n.normalize()
         }
@@ -671,8 +667,7 @@ impl Inputs {
     fn calc_ao(&self, pos: Vec3, nor: Vec3) -> f32 {
         let mut occ: f32 = 0.0;
         let mut sca: f32 = 1.0;
-        let mut i = self.zero();
-        while i < 5 {
+        for i in 0..5 {
             let h: f32 = 0.01 + 0.12 * i as f32 / 4.0;
             let d: f32 = map(pos + h * nor).x;
             occ += (h - d) * sca;
@@ -680,7 +675,6 @@ impl Inputs {
             if occ > 0.35 {
                 break;
             }
-            i += 1;
         }
         (1.0 - 3.0 * occ).clamp(0.0, 1.0) * (0.5 + 0.5 * nor.y)
     }
@@ -810,10 +804,8 @@ impl Inputs {
         let mut tot: Vec3 = Vec3::ZERO;
         let mut p: Vec2;
 
-        let mut m = self.zero();
-        while m < AA {
-            let mut n = self.zero();
-            while n < AA {
+        for m in 0..AA {
+            for n in 0..AA {
                 // pixel coordinates
                 let o: Vec2 = vec2(m as f32, n as f32) / AA as f32 - Vec2::splat(0.5);
                 if AA > 1 {
@@ -843,9 +835,7 @@ impl Inputs {
                 col = col.powf_vec(Vec3::splat(0.4545));
 
                 tot += col;
-                n += 1;
             }
-            m += 1;
         }
         tot /= (AA * AA) as f32;
 

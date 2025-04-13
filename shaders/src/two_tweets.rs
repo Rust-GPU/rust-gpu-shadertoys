@@ -30,10 +30,8 @@ impl Inputs {
     pub fn main_image(&self, c: &mut Vec4, p: Vec2) {
         let d: Vec3 = Vec3::splat(0.5) - p.extend(1.0) / self.resolution.x;
         let mut o: Vec3 = d;
-        let mut i = 0;
-        while i < 128 {
+        for _ in 0..128 {
             o += self.f(o) * d;
-            i += 1;
         }
         *c = ((self.f(o - d) * vec3(0.0, 1.0, 2.0)
             + Vec3::splat(self.f(o - Vec3::splat(0.6))) * vec3(2.0, 1.0, 0.0))

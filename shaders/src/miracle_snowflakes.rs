@@ -26,7 +26,7 @@ pub struct Inputs {
     pub mouse: Vec4,
 }
 
-const ITERATIONS: f32 = 15.0;
+const ITERATIONS: u32 = 15;
 const DEPTH: f32 = 0.0125;
 const LAYERS: f32 = 8.0;
 const LAYERSBLOB: i32 = 20;
@@ -58,7 +58,7 @@ impl State {
             zoom: 4.0,    // use this to change details. optimal 0.1 - 4.0.
             light: vec3(0.0, 0.0, 1.0),
             seed: vec2(0.0, 0.0),
-            iteratorc: ITERATIONS,
+            iteratorc: ITERATIONS as f32,
             powr: 0.0,
             res: 0.0,
 
@@ -172,7 +172,7 @@ impl State {
                 }
                 ds = (r2 - r1).dot(ray);
             }
-            ds = (ds.abs() + 0.1) / (ITERATIONS);
+            ds = (ds.abs() + 0.1) / (ITERATIONS as f32);
             ds = mix(DEPTH, ds, 0.2);
             if ds > 0.01 {
                 ds = 0.01;
@@ -180,9 +180,8 @@ impl State {
             let ir: f32 = 0.35 / r;
             r *= self.zoom;
             ray = ray * ds * 5.0;
-            let mut m: f32 = 0.0;
-            while m < ITERATIONS {
-                if m >= self.iteratorc {
+            for m in 0..ITERATIONS {
+                if m as f32 >= self.iteratorc {
                     break;
                 }
                 let mut l: f32 = r1.xy().length(); //r1.xy().dot(r1.xy()).sqrt();
@@ -200,7 +199,6 @@ impl State {
                 }
                 r1 += ray * h;
                 ray *= 0.99;
-                m += 1.0;
             }
             if r1.z.abs() < DEPTH + 0.01 {
                 dist = r1 + pos;
@@ -261,7 +259,7 @@ impl State {
         self.nray2 = Vec3::ZERO;
 
         let mut refcolor: Vec4 = Vec4::ZERO;
-        self.iteratorc = ITERATIONS - LAYERS;
+        self.iteratorc = ITERATIONS as f32 - LAYERS;
 
         let mut addrot: Vec2 = Vec2::ZERO;
         if self.inputs.mouse.z > 0.0 {
@@ -274,8 +272,7 @@ impl State {
         self.mxc = 1.0;
         self.radius = 0.25;
         let mzd: f32 = (self.zoom - 0.1) / LAYERS;
-        let mut i = 0;
-        while i < LAYERSBLOB {
+        for i in 0..LAYERSBLOB {
             let p2: Vec2 = p - Vec2::splat(0.25) + Vec2::splat(0.1 * i as f32);
             ray = p2.extend(2.0) - self.nray * 2.0;
             //ray = self.nray;//*0.6;
@@ -359,7 +356,6 @@ impl State {
             self.iteratorc += 2.0;
             mxcl -= 1.1 / LAYERSBLOB as f32;
             self.zoom -= mzd;
-            i += 1;
         }
 
         let cr: Vec3 = mix(Vec3::ZERO, vec3(0.0, 0.0, 0.4), (-0.55 + p.y) * 2.0);

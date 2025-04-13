@@ -101,15 +101,13 @@ impl State {
         let mut z: f32 = 1.0;
         let mut trk: f32 = 1.0;
         let dsp_amp: f32 = 0.1 + self.prm1 * 0.2;
-        let mut i = 0;
-        while i < 5 {
+        for _ in 0..5 {
             p += (p.zxy() * 0.75 * trk + Vec3::splat(self.inputs.time) * trk * 0.8).sin() * dsp_amp;
             d -= (p.cos().dot(p.yzx().sin()) * z).abs();
             z *= 0.57;
             trk *= 1.4;
             let m3 = M3;
             p = m3.transpose() * p;
-            i += 1;
         }
         d = (d + self.prm1 * 3.0).abs() + self.prm1 * 0.3 - 2.5 + self.bs_mo.y;
         vec2(d + cl * 0.2 + 0.25, cl)
@@ -122,8 +120,7 @@ impl State {
         let mut t: f32 = 1.5;
         let mut fog_t: f32 = 0.0;
 
-        let mut i = 0;
-        while i < 130 {
+        for _ in 0..130 {
             if rez.w > 0.99 {
                 break;
             }
@@ -157,8 +154,6 @@ impl State {
             fog_t = fog_c;
             rez = rez + col * (1.0 - rez.w);
             t += (0.5 - dn * dn * 0.05).clamp(0.09, 0.3);
-
-            i += 1;
         }
 
         rez.clamp(Vec4::ZERO, Vec4::ONE)

@@ -56,8 +56,8 @@ impl State {
 
 const INVERTMOUSE: f32 = -1.0;
 
-const MAX_STEPS: f32 = 100.0;
-const VOLUME_STEPS: f32 = 8.0;
+const MAX_STEPS: u32 = 100;
+const VOLUME_STEPS: u32 = 8;
 const SINGLE: bool = false;
 const _MIN_DISTANCE: f32 = 0.1;
 const MAX_DISTANCE: f32 = 100.0;
@@ -396,8 +396,7 @@ impl State {
         let t: f32 = self.inputs.time;
         let grid: Vec3 = vec3(6.0, 30.0, 6.0);
 
-        let mut i = 0.0;
-        while i < MAX_STEPS {
+        for _ in 0..MAX_STEPS {
             p = r.o + r.d * d;
 
             if SINGLE {
@@ -426,7 +425,6 @@ impl State {
                 break;
             }
             d += s.d.min(d_c); // move to distance to next cell or surface, whichever is closest
-            i += 1.0;
         }
 
         if s.d < HIT_DISTANCE {
@@ -510,19 +508,17 @@ impl State {
             if o.m == 1.0 {
                 // hood color
                 let mut density: f32 = 0.0;
-                let mut i = 0.0;
-                while i < VOLUME_STEPS {
-                    let sd: f32 = sph(o.uv, cam_ray.d, Vec3::ZERO, 0.8 + i * 0.015).x;
+                for i in 0..VOLUME_STEPS {
+                    let sd: f32 = sph(o.uv, cam_ray.d, Vec3::ZERO, 0.8 + i as f32 * 0.015).x;
                     if sd != MAX_DISTANCE {
                         let intersect: Vec2 = o.uv.xz() + cam_ray.d.xz() * sd;
 
                         let uv: Vec3 =
                             vec3(intersect.x.atan2(intersect.y), intersect.length(), o.uv.z);
-                        density += self.vol_tex(o.uv, uv, 1.4 + i * 0.03, o.pump);
+                        density += self.vol_tex(o.uv, uv, 1.4 + i as f32 * 0.03, o.pump);
                     }
-                    i += 1.0;
                 }
-                let vol_tex: Vec4 = self.accent.extend(density / VOLUME_STEPS);
+                let vol_tex: Vec4 = self.accent.extend(density / VOLUME_STEPS as f32);
 
                 let mut dif: Vec3 = jelly_tex(o.uv).xyz();
                 dif *= lambert.max(0.2);

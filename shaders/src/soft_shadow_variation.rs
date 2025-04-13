@@ -57,8 +57,7 @@ fn calc_softshadow(ro: Vec3, rd: Vec3, mint: f32, tmax: f32, technique: i32) -> 
     let mut res: f32 = 1.0;
     let mut t: f32 = mint;
     let mut ph: f32 = 1e10; // big, such that y = 0 on the first iteration
-    let mut i = 0;
-    while i < 32 {
+    for _ in 0..32 {
         let h: f32 = map(ro + rd * t);
 
         // traditional technique
@@ -81,7 +80,6 @@ fn calc_softshadow(ro: Vec3, rd: Vec3, mint: f32, tmax: f32, technique: i32) -> 
         if res < 0.0001 || t > tmax {
             break;
         }
-        i += 1;
     }
     res.clamp(0.0, 1.0)
 }
@@ -115,15 +113,13 @@ fn cast_ray(ro: Vec3, rd: Vec3) -> f32 {
         }
     }
     let mut t: f32 = tmin;
-    let mut i = 0;
-    while i < 64 {
+    for _ in 0..64 {
         let precis: f32 = 0.0005 * t;
         let res: f32 = map(ro + rd * t);
         if res < precis || t > tmax {
             break;
         }
         t += res;
-        i += 1;
     }
 
     if t > tmax {
@@ -135,13 +131,11 @@ fn cast_ray(ro: Vec3, rd: Vec3) -> f32 {
 fn calc_ao(pos: Vec3, nor: Vec3) -> f32 {
     let mut occ: f32 = 0.0;
     let mut sca: f32 = 1.0;
-    let mut i = 0;
-    while i < 5 {
+    for i in 0..5 {
         let h: f32 = 0.001 + 0.15 * i as f32 / 4.0;
         let d: f32 = map(pos + h * nor);
         occ += (h - d) * sca;
         sca *= 0.95;
-        i += 1;
     }
     (1.0 - 1.5 * occ).clamp(0.0, 1.0)
 }
@@ -206,10 +200,8 @@ impl Inputs {
 
         let mut tot: Vec3 = Vec3::ZERO;
 
-        let mut m = 0;
-        while m < AA {
-            let mut n = 0;
-            while n < AA {
+        for m in 0..AA {
+            for n in 0..AA {
                 // pixel coordinates
                 let o: Vec2 = vec2(m as f32, n as f32) / AA as f32 - Vec2::splat(0.5);
                 let p: Vec2 = (-self.resolution.xy() + 2.0 * (frag_coord + o)) / self.resolution.y;
@@ -224,10 +216,7 @@ impl Inputs {
                 col = col.powf(0.4545);
 
                 tot += col;
-
-                n += 1;
             }
-            m += 1;
         }
         tot /= (AA * AA) as f32;
 

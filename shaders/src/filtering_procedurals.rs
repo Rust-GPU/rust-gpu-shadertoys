@@ -304,10 +304,8 @@ fn sample_texture_with_filter(
     let mut no: Vec3 = Vec3::ZERO;
 
     if true {
-        let mut j = 0;
-        while j < MAX_SAMPLES {
-            let mut i = 0;
-            while i < MAX_SAMPLES {
+        for j in 0..MAX_SAMPLES {
+            for i in 0..MAX_SAMPLES {
                 if j < sy && i < sx {
                     let st: Vec2 = vec2(i as f32, j as f32) / vec2(sx as f32, sy as f32);
                     no += mytexture(
@@ -316,24 +314,18 @@ fn sample_texture_with_filter(
                         mid,
                     );
                 }
-                i += 1;
             }
-            j += 1;
         }
     } else {
-        let mut j = 0;
-        while j < sy {
-            let mut i = 0;
-            while i < sx {
+        for j in 0..sy {
+            for i in 0..sx {
                 let st: Vec2 = vec2(i as f32, j as f32) / vec2(sx as f32, sy as f32);
                 no += mytexture(
                     uvw + st.x * (ddx_uvw - uvw) + st.y * (ddy_uvw - uvw),
                     nor,
                     mid,
                 );
-                i += 1;
             }
-            j += 1;
         }
     }
 

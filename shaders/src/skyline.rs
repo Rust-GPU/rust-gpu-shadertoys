@@ -73,7 +73,7 @@ impl<C0> State<C0> {
 // stochastic antialiasing and motion blur automatically for any shader.
 const NON_REALTIME_HQ_RENDER: bool = false;
 const FRAME_TO_RENDER_HQ: f32 = 50.0; // Time in seconds of frame to render
-const ANTIALIASING_SAMPLES: f32 = 16.0; // 16x antialiasing - too much might make the shader compiler angry.
+const ANTIALIASING_SAMPLES: u32 = 16; // 16x antialiasing - too much might make the shader compiler angry.
 
 const MANUAL_CAMERA: bool = false;
 
@@ -629,10 +629,9 @@ impl<C0: SampleCube> State<C0> {
         let max_depth: f32 = 45.0; // farthest distance rays will travel
         let mut pos: Vec3 = Vec3::ZERO;
         let small_val: f32 = 0.000625;
-        // ray marching time
-        let mut i = 0;
 
-        while i < 250 {
+        // ray marching time
+        for _ in 0..250 {
             // This is the count of the max times the ray actually marches.
             self.march_count += 1.0;
             // Step along the ray.
@@ -669,7 +668,6 @@ impl<C0: SampleCube> State<C0> {
             if (t > max_depth) || (dist_and_mat.x.abs() < small_val) {
                 break;
             }
-            i += 1;
         }
 
         // Ray trace a ground plane to infinity
@@ -722,8 +720,7 @@ impl<C0: SampleCube> State<C0> {
             let mut sun_shadow: f32 = 1.0;
             let mut iter: f32 = 0.01;
             let nudge_pos: Vec3 = pos + normal * 0.002; // don't start tracing too close or inside the object
-            let mut i = 0;
-            while i < 40 {
+            for _ in 0..40 {
                 let shadow_pos: Vec3 = nudge_pos + self.sun_dir * iter;
                 let temp_dist: f32 = self.distance_to_object(shadow_pos).x;
                 sun_shadow *= saturate(temp_dist * 150.0); // Shadow hardness
@@ -751,7 +748,6 @@ impl<C0: SampleCube> State<C0> {
                 if iter > 4.5 {
                     break;
                 }
-                i += 1;
             }
             sun_shadow = saturate(sun_shadow);
 
@@ -1022,8 +1018,7 @@ impl<C0: SampleCube> State<C0> {
         // Do a multi-pass render
         let mut final_color: Vec3 = Vec3::ZERO;
         if NON_REALTIME_HQ_RENDER {
-            let mut i = 0.0;
-            while i < ANTIALIASING_SAMPLES {
+            for _ in 0..ANTIALIASING_SAMPLES {
                 let motion_blur_length_in_seconds: f32 = 1.0 / 60.0;
                 // Set this to the time in seconds of the frame to render.
                 self.local_time = FRAME_TO_RENDER_HQ;
@@ -1037,17 +1032,16 @@ impl<C0: SampleCube> State<C0> {
                         hash21(frag_coord * 7.234567 + Vec2::splat(self.seed)),
                     );
                 // don't antialias if only 1 sample.
-                if ANTIALIASING_SAMPLES == 1.0 {
+                if ANTIALIASING_SAMPLES == 1 {
                     jittered = frag_coord
                 };
                 // Accumulate one pass of raytracing into our pixel value
                 final_color += self.ray_trace(jittered);
                 // Change the random seed for each pass.
                 self.seed *= 1.01234567;
-                i += 1.0;
             }
             // Average all accumulated pixel intensities
-            final_color /= ANTIALIASING_SAMPLES;
+            final_color /= ANTIALIASING_SAMPLES as f32;
         } else {
             // Regular real-time rendering
             self.local_time = self.inputs.time;

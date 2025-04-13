@@ -3,11 +3,6 @@
 use shared::*;
 use spirv_std::glam::{mat2, vec2, vec3, Mat2, Vec2, Vec3, Vec3Swizzles, Vec4};
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-
 pub struct Inputs {
     pub resolution: Vec3,
     pub time: f32,
@@ -55,13 +50,11 @@ fn noise(p: Vec2) -> f32 {
 fn fbm(mut n: Vec2) -> f32 {
     let mut total: f32 = 0.0;
     let mut amplitude: f32 = 0.1;
-    let mut i = 0;
-    while i < 7 {
+    for _ in 0..7 {
         total += noise(n) * amplitude;
         let m = M;
         n = m.transpose() * n;
         amplitude *= 0.4;
-        i += 1;
     }
     total
 }
@@ -80,13 +73,11 @@ impl Inputs {
         uv *= CLOUD_SCALE;
         uv -= Vec2::splat(q - time);
         let mut weight: f32 = 0.8;
-        let mut i = 0;
-        while i < 8 {
+        for _ in 0..8 {
             r += (weight * noise(uv)).abs();
             let m = M;
             uv = m.transpose() * uv + Vec2::splat(time);
             weight *= 0.7;
-            i += 1;
         }
 
         //noise shape
@@ -95,13 +86,11 @@ impl Inputs {
         uv *= CLOUD_SCALE;
         uv -= Vec2::splat(q - time);
         weight = 0.7;
-        let mut i = 0;
-        while i < 8 {
+        for _ in 0..8 {
             f += weight * noise(uv);
             let m = M;
             uv = m.transpose() * uv + Vec2::splat(time);
             weight *= 0.6;
-            i += 1;
         }
 
         f *= r + f;
@@ -113,13 +102,11 @@ impl Inputs {
         uv *= CLOUD_SCALE * 2.0;
         uv -= Vec2::splat(q - time);
         weight = 0.4;
-        let mut i = 0;
-        while i < 7 {
+        for _ in 0..7 {
             c += weight * noise(uv);
             let m = M;
             uv = m.transpose() * uv + Vec2::splat(time);
             weight *= 0.6;
-            i += 1;
         }
 
         //noise ridge colour
@@ -129,13 +116,11 @@ impl Inputs {
         uv *= CLOUD_SCALE * 3.0;
         uv -= Vec2::splat(q - time);
         weight = 0.4;
-        let mut i = 0;
-        while i < 7 {
+        for _ in 0..7 {
             c1 += (weight * noise(uv)).abs();
             let m = M;
             uv = m.transpose() * uv + Vec2::splat(time);
             weight *= 0.6;
-            i += 1;
         }
 
         c += c1;

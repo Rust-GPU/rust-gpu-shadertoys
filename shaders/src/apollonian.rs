@@ -51,8 +51,7 @@ impl State {
     fn map(&mut self, mut p: Vec3, s: f32) -> f32 {
         let mut scale: f32 = 1.0;
         self.orb = Vec4::splat(1000.0);
-        let mut i = 0;
-        while i < 8 {
+        for _ in 0..8 {
             p = Vec3::splat(-1.0) + 2.0 * (0.5 * p + Vec3::splat(0.5)).fract_gl();
 
             let r2: f32 = p.dot(p);
@@ -62,7 +61,6 @@ impl State {
             let k: f32 = s / r2;
             p *= k;
             scale *= k;
-            i += 1;
         }
         0.25 * p.y.abs() / scale
     }
@@ -71,8 +69,7 @@ impl State {
         let maxd = 30.0;
         let mut t: f32 = 0.01;
 
-        let mut i = 0;
-        while i < 512 {
+        for _ in 0..512 {
             let precis = 0.001 * t;
 
             let h: f32 = self.map(ro + rd * t, s);
@@ -80,7 +77,6 @@ impl State {
                 break;
             }
             t += h;
-            i += 1;
         }
         if t > maxd {
             t = -1.0;
@@ -141,10 +137,8 @@ impl State {
         let anim: f32 = 1.1 + 0.5 * smoothstep(-0.3, 0.3, (0.1 * self.inputs.time).cos());
         let mut tot: Vec3 = Vec3::ZERO;
 
-        let mut jj = 0;
-        while jj < AA {
-            let mut ii = 0;
-            while ii < AA {
+        for jj in 0..AA {
+            for ii in 0..AA {
                 let q: Vec2 = frag_coord + vec2(ii as f32, jj as f32) / AA as f32;
                 let p: Vec2 = (2.0 * q - self.inputs.resolution.xy()) / self.inputs.resolution.y;
 
@@ -167,9 +161,7 @@ impl State {
                 let rd: Vec3 = (p.x * cu + p.y * cv + 2.0 * cw).normalize();
 
                 tot += self.render(ro, rd, anim);
-                ii += 1;
             }
-            jj += 1;
         }
 
         tot = tot / (AA * AA) as f32;

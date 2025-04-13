@@ -120,8 +120,7 @@ impl Inputs {
         let mut d: f32;
         let mut h: f32 = 0.0;
 
-        let mut i = 0;
-        while i < ITER_GEOMETRY {
+        for _ in 0..ITER_GEOMETRY {
             d = sea_octave((uv + Vec2::splat(self.sea_time())) * freq, choppy);
             d += sea_octave((uv - Vec2::splat(self.sea_time())) * freq, choppy);
             h += d * amp;
@@ -130,7 +129,6 @@ impl Inputs {
             freq *= 1.9;
             amp *= 0.22;
             choppy = mix(choppy, 1.0, 0.2);
-            i += 1;
         }
         p.y - h
     }
@@ -143,8 +141,7 @@ impl Inputs {
         uv.x *= 0.75;
         let mut d: f32;
         let mut h: f32 = 0.0;
-        let mut i = 0;
-        while i < ITER_FRAGMENT {
+        for _ in 0..ITER_FRAGMENT {
             d = sea_octave((uv + Vec2::splat(self.sea_time())) * freq, choppy);
             d += sea_octave((uv - Vec2::splat(self.sea_time())) * freq, choppy);
             h += d * amp;
@@ -153,7 +150,6 @@ impl Inputs {
             freq *= 1.9;
             amp *= 0.22;
             choppy = mix(choppy, 1.0, 0.2);
-            i += 1;
         }
         p.y - h
     }
@@ -194,8 +190,7 @@ impl Inputs {
         }
         let mut hm: f32 = self.map(ori + dir * tm);
         let mut tmid: f32 = 0.0;
-        let mut i = 0;
-        while i < NUM_STEPS {
+        for _ in 0..NUM_STEPS {
             tmid = mix(tm, tx, hm / (hm - hx));
             *p = ori + dir * tmid;
             let hmid: f32 = self.map(*p);
@@ -206,7 +201,6 @@ impl Inputs {
                 tm = tmid;
                 hm = hmid;
             }
-            i += 1;
         }
         tmid
     }
@@ -241,15 +235,11 @@ impl Inputs {
         let mut color: Vec3;
         if AA {
             color = Vec3::ZERO;
-            let mut i = -1;
-            while i <= 1 {
-                let mut j = -1;
-                while j <= 1 {
+            for i in -1..=1 {
+                for j in -1..=1 {
                     let uv: Vec2 = frag_coord + vec2(i as f32, j as f32) / 3.0;
                     color += self.get_pixel(uv, time);
-                    j += 1;
                 }
-                i += 1;
             }
             color /= 9.0;
         } else {

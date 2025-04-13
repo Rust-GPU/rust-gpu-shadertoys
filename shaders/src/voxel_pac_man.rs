@@ -58,7 +58,7 @@ const HSV2RGB_SAFE: bool = false;
 const CAMERA_FOCAL_LENGTH: f32 = 8.0;
 const DELTA: f32 = 0.01;
 const RAY_LENGTH_MAX: f32 = 500.0;
-const RAY_STEP_MAX: f32 = 100.0;
+const RAY_STEP_MAX: u32 = 100;
 const AMBIENT: f32 = 0.2;
 const SPECULAR_POWER: f32 = 2.0;
 const SPECULAR_INTENSITY: f32 = 0.3;
@@ -167,8 +167,7 @@ impl State {
         let mut ray_length_check_voxel: f32 = 0.0;
         let ray_sign: Vec3 = ray.gl_sign();
         let ray_delta_voxel: Vec3 = ray_sign / ray;
-        let mut ray_step: f32 = 0.0;
-        while ray_step < RAY_STEP_MAX {
+        for _ in 0..RAY_STEP_MAX {
             if ray_length < ray_length_in_voxel {
                 d.x = self.dist_voxel((*p + Vec3::splat(0.5)).fract_gl() - Vec3::splat(0.5));
                 if d.x < DELTA {
@@ -204,7 +203,6 @@ impl State {
                 break;
             }
             *p += d.x * ray;
-            ray_step += 1.0;
         }
         d.extend(ray_length).extend(rand(p2))
     }
@@ -324,7 +322,7 @@ impl State {
             1.0,
             mode_3d * BACKGROUND,
         ));
-        let glow_color: Vec3 = GLOW * vec3(1.0, 0.3, 0.0) * self.glow_counter / RAY_STEP_MAX;
+        let glow_color: Vec3 = GLOW * vec3(1.0, 0.3, 0.0) * self.glow_counter / RAY_STEP_MAX as f32;
         if d.x < DELTA {
             // Set the object color
             let mut color: Vec3 = hsv2rgb(vec3(

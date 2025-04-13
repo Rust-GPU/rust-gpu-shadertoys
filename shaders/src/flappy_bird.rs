@@ -1106,24 +1106,20 @@ impl State {
     fn draw_bushes(&mut self, co: Vec2) {
         self.draw_horz_rect(co.y, 39.0, 70.0, rgb(100, 224, 117));
 
-        let mut i = 0;
-        while i < 20 {
+        for i in 0..20 {
             let x_offset: f32 = i as f32 * 45.0;
             self.draw_bush_group(vec2(x_offset, 70.0), co);
             self.draw_bush_group(vec2(x_offset + 7.0, 68.0), co);
             self.draw_bush_group(vec2(x_offset - 16.0, 65.0), co);
-            i += 1;
         }
     }
 
     fn draw_clouds(&mut self, co: Vec2) {
-        let mut i = 0;
-        while i < 20 {
+        for i in 0..20 {
             let x_offset: f32 = i as f32 * 40.0;
             self.draw_tile(2, vec2(x_offset, 95.0), co);
             self.draw_tile(2, vec2(x_offset + 14.0, 91.0), co);
             self.draw_tile(2, vec2(x_offset + 28.0, 93.0), co);
-            i += 1;
         }
 
         self.draw_horz_rect(co.y, 70.0, 95.0, rgb(233, 251, 218));
@@ -1148,8 +1144,7 @@ impl State {
         let half_top: f32 = (center + PIPE_MAX) / 2.0;
         let half_bottom: f32 = (center + PIPE_MIN) / 2.0;
 
-        let mut i = 0;
-        while i < 12 {
+        for i in 0..12 {
             let mut y_pos: f32 = center;
             let cycle: i32 = (i as f32).rem_euclid(8.0) as i32;
 
@@ -1165,7 +1160,6 @@ impl State {
 
             self.draw_pipe_pair(co, x_pos, y_pos);
             x_pos += HORZ_PIPE_DISTANCE;
-            i += 1;
         }
     }
 
@@ -1193,8 +1187,7 @@ impl State {
         // for each such pipe, we deduce if we went "up" or "down" in Y
         let cycle_count: i32 = (f_cycle_frame / HORZ_PIPE_DISTANCE) as i32;
 
-        let mut i = 0;
-        while i < 10 {
+        for i in 0..10 {
             if i <= cycle_count {
                 if i == 1 {
                     prev_up_cycles += 1;
@@ -1207,7 +1200,6 @@ impl State {
                     prev_up_cycles += 1;
                 }
             }
-            i += 1;
         }
 
         // add up/down delta from all the previous pipes

@@ -37,23 +37,17 @@ impl Inputs {
 
         let mut s: f32 = 0.0;
 
-        let mut i = 0;
-        while i < 90 {
+        for _ in 0..90 {
             let mut p: Vec3 = s * uv.extend(0.0);
             p = (ma.transpose() * p.xy()).extend(p.z);
             p += vec3(0.22, 0.3, s - 1.5 - (self.time * 0.13).sin() * 0.1);
-            {
-                let mut i = 0;
-                while i < 8 {
-                    p = p.abs() / p.dot(p) - Vec3::splat(0.659);
-                    i += 1;
-                }
+            for _ in 0..8 {
+                p = p.abs() / p.dot(p) - Vec3::splat(0.659);
             }
             v1 += p.dot(p) * 0.0015 * (1.8 + ((uv * 13.0).length() + 0.5 - self.time * 0.2).sin());
             v2 += p.dot(p) * 0.0013 * (1.5 + ((uv * 14.5).length() + 1.2 - self.time * 0.3).sin());
             v3 += (p.xy() * 10.0).length() * 0.0003;
             s += 0.035;
-            i += 1;
         }
 
         let len: f32 = uv.length();

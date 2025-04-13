@@ -38,14 +38,12 @@ fn box_(p: Vec3, b: Vec3) -> f32 {
 
 impl Inputs {
     fn ifs_box(&self, mut p: Vec3) -> f32 {
-        let mut i = 0;
-        while i < 5 {
+        for _ in 0..5 {
             p = p.abs() - Vec3::splat(1.0);
             p = (rot(self.time * 0.3).transpose() * p.xy()).extend(p.z);
             p = (rot(self.time * 0.1).transpose() * p.xz())
                 .extend(p.y)
                 .xzy();
-            i += 1;
         }
         p = (rot(self.time).transpose() * p.xz()).extend(p.y).xzy();
         box_(p, vec3(0.4, 0.8, 0.3))
@@ -77,8 +75,7 @@ impl Inputs {
         let mut acc2: f32 = 0.0;
         let mut t: f32 = 0.0;
 
-        let mut i = 0;
-        while i < 99 {
+        for _ in 0..99 {
             let pos: Vec3 = c_pos + ray * t;
             let mut dist: f32 = self.map(pos, c_pos);
             dist = dist.abs().max(0.02);
@@ -89,7 +86,6 @@ impl Inputs {
             }
             acc += a;
             t += dist * 0.5;
-            i += 1;
         }
 
         let col: Vec3 = vec3(

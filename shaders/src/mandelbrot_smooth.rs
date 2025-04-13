@@ -42,14 +42,12 @@ impl Inputs {
         const B: f32 = 256.0;
         let mut l: f32 = 0.0;
         let mut z: Vec2 = Vec2::ZERO;
-        let mut i = 0;
-        while i < 512 {
+        for _ in 0..512 {
             z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
             if z.dot(z) > (B * B) {
                 break;
             }
             l += 1.0;
-            i += 1;
         }
 
         if l > 511.0 {
@@ -69,10 +67,8 @@ impl Inputs {
     pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let mut col: Vec3 = Vec3::ZERO;
 
-        let mut m = 0;
-        while m < AA {
-            let mut n = 0;
-            while n < AA {
+        for m in 0..AA {
+            for n in 0..AA {
                 let p: Vec2 = (-self.resolution.xy()
                     + Vec2::splat(2.0) * (frag_coord + vec2(m as f32, n as f32) / AA as f32))
                     / self.resolution.y;
@@ -89,9 +85,7 @@ impl Inputs {
                 let l: f32 = self.mandelbrot(c);
                 col += Vec3::splat(0.5)
                     + Vec3::splat(0.5) * (Vec3::splat(3.0 + l * 0.15) + vec3(0.0, 0.6, 1.0)).cos();
-                n += 1;
             }
-            m += 1;
         }
         col /= (AA * AA) as f32;
         *frag_color = col.extend(1.0);

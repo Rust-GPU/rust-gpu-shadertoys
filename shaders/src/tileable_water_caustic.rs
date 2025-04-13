@@ -44,8 +44,7 @@ impl Inputs {
         let mut c: f32 = 1.0;
         let inten: f32 = 0.005;
 
-        let mut n = 0;
-        while n < MAX_ITER {
+        for n in 0..MAX_ITER {
             let t: f32 = time * (1.1 - (3.5 / (n + 1) as f32));
             i = p + vec2(
                 (t - i.x).cos() + (t + i.y).sin(),
@@ -57,7 +56,6 @@ impl Inputs {
                     p.y / ((i.y + t).cos() / inten),
                 )
                 .length();
-            n += 1;
         }
         c /= MAX_ITER as f32;
         c = 1.17 - c.powf(1.4);

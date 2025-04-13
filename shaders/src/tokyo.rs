@@ -315,8 +315,7 @@ impl State {
         self.lint2 = Vec4::splat(-500.0);
         let mut mld: f32 = 100.0;
 
-        let mut i = 0;
-        while i < MARCHSTEPS {
+        for _ in 0..MARCHSTEPS {
             h = self.map(ro + rd * t);
             if self.d_l < mld {
                 mld = self.d_l;
@@ -328,7 +327,6 @@ impl State {
                 break;
             }
             t += h.max(precis * 2.);
-            i += 1;
         }
 
         if self.int1.z < -400.0 || t > 300.0 {
@@ -348,8 +346,7 @@ impl State {
         t = 0.0;
         mld = 100.;
 
-        let mut i = 0;
-        while i < MARCHSTEPSREFLECTION {
+        for _ in 0..MARCHSTEPSREFLECTION {
             h = self.map(ro + rd * t);
             if self.d_l < mld {
                 mld = self.d_l;
@@ -361,7 +358,6 @@ impl State {
                 return 1.0;
             }
             t += h.max(precis * 2.0);
-            i += 1;
         }
 
         0.0

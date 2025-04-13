@@ -93,35 +93,30 @@ fn apollonian(uv: Vec2) -> Vec3 {
     dec[0] = vec3(0.0, 0.0, -1.0 / ra);
     let radius: f32 = 0.5 * (ra - rb);
     let bend: f32 = 1.0 / radius;
-    let mut i = 1;
-    while i < 4 {
+    for i in 1..4 {
         dec[i] = vec3((i as f32 * a).cos(), (i as f32 * a).sin(), bend);
         // if the point is in one of the starting circles we have already found our solution
         if (uv - dec[i].xy()).length() < radius {
             return (uv - dec[i].xy()).extend(radius);
         }
-        i += 1;
     }
 
     // Now that we have a starting DEC we are going to try to
     // find the solution for the current point
-    let mut i = 0;
-    while i < 7 {
+    for _ in 0..7 {
         // find the circle that is further away from the point uv, using euclidean distance
         let mut fi: usize = 0;
         let mut d: f32 = uv.distance(dec[0].xy()) - (1.0 / dec[0].z).abs();
         // for some reason, the euclidean distance doesn't work for the circle with negative bend
         // can anyone with proper math skills, explain me why?
         d *= if dec[0].z < 0.0 { -0.5 } else { 1.0 }; // just scale it to make it work...
-        let mut j = 1;
-        while j < 4 {
+        for j in 1..4 {
             let mut fd: f32 = uv.distance(dec[j].xy()) - (1. / dec[j].z).abs();
             fd *= if dec[j].z < 0.0 { -0.5 } else { 1.0 };
             if fd > d {
                 fi = j;
                 d = fd;
             }
-            j += 1;
         }
         // put the cicle found in the last slot, to generate a solution
         // in the "direction" of the point
@@ -147,7 +142,6 @@ fn apollonian(uv: Vec2) -> Vec3 {
         // else update the descartes configuration,
         dec[3] = solution;
         // and repeat...
-        i += 1;
     }
     // if nothing is found we return by default the inner circle of the Steiner chain
     uv.extend(rb)

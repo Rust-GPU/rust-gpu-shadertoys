@@ -154,8 +154,7 @@ impl Inputs {
         let mut dis: Vec3 = (pos - ro + 0.5 * Vec3::splat(GRIDSIZE) + rs * 0.5) * ri;
         let mut mm: Vec3;
 
-        let mut i = 0;
-        while i < RAYCASTSTEPS {
+        for _ in 0..RAYCASTSTEPS {
             if *material > 1 || ro.xz().distance(pos.xz()) > *dist + GRIDSIZE {
                 break;
             }
@@ -184,7 +183,6 @@ impl Inputs {
             mm = dis.step(dis.zyx());
             dis += mm * rs * ri;
             pos += mm * rs;
-            i += 1;
         }
 
         let mut color: Vec3 = Vec3::ZERO;
@@ -195,10 +193,8 @@ impl Inputs {
             if *material == 1 || *material == 3 {
                 // lightning
                 let c: Vec3 = vec3(-GRIDSIZE, 0.0, GRIDSIZE);
-                let mut x = 0;
-                while x < 3 {
-                    let mut y = 0;
-                    while y < 3 {
+                for x in 0..3 {
+                    for y in 0..3 {
                         let mapoffset: Vec2 = map + vec2([c.x, c.y, c.z][x], [c.x, c.y, c.z][y]);
                         let mut offset: Vec2 = Vec2::ZERO;
                         get_sphere_offset(mapoffset, &mut offset);
@@ -209,12 +205,9 @@ impl Inputs {
                         let mut shadow: f32 = 1.0;
 
                         if SHADOW && *material == 1 {
-                            let mut sx = 0;
-                            while sx < 3 {
-                                let mut sy = 0;
-                                while sy < 3 {
+                            for _ in 0..3 {
+                                for _ in 0..3 {
                                     if shadow < 1.0 {
-                                        sy += 1;
                                         continue;
                                     }
 
@@ -235,9 +228,7 @@ impl Inputs {
                                     ) {
                                         shadow = 0.0;
                                     }
-                                    sy += 1;
                                 }
-                                sx += 1;
                             }
                         }
                         color += col
@@ -245,9 +236,7 @@ impl Inputs {
                             * (shadow
                                 * ((lpos - *intersection).normalize().dot(*normal)).max(0.0)
                                 * (1. - (lpos.distance(*intersection) / GRIDSIZE).clamp(0.0, 1.)));
-                        y += 1;
                     }
-                    x += 1;
                 }
             } else {
                 // emitter

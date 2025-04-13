@@ -51,13 +51,11 @@ fn i_sphere(ro: Vec3, rd: Vec3, sph: Vec4) -> Vec2 {
 fn map(mut p: Vec3) -> f32 {
     let mut res: f32 = 0.0;
     let c: Vec3 = p;
-    let mut i = 0;
-    while i < 10 {
+    for _ in 0..10 {
         p = 0.7 * p.abs() / p.dot(p) - Vec3::splat(0.7);
         p = csqr(p.yz()).extend(p.x).zxy();
         p = p.zxy();
         res += (-19.0 * p.dot(c).abs()).exp();
-        i += 1;
     }
     res / 2.0
 }
@@ -69,8 +67,7 @@ impl<C0: SampleCube> Inputs<C0> {
         //let dt: f32 = 0.2 - 0.195 * (self.time * 0.05).cos(); //animated
         let mut col: Vec3 = Vec3::ZERO;
         let mut c: f32 = 0.0;
-        let mut i = 0;
-        while i < 64 {
+        for _ in 0..64 {
             t += dt * (-2.0 * c).exp();
             if t > tminmax.y {
                 break;
@@ -82,7 +79,6 @@ impl<C0: SampleCube> Inputs<C0> {
             col = 0.99 * col + 0.08 * vec3(c * c, c, c * c * c); //green
 
             // col = 0.99 * col + 0.08 * vec3(c * c * c, c * c, c); //blue
-            i += 1;
         }
         col
     }
