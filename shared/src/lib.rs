@@ -35,11 +35,11 @@ pub fn saturate(x: f32) -> f32 {
 }
 
 pub fn pow(v: Vec3, power: f32) -> Vec3 {
-    vec3(v.x.powf(power), v.y.powf(power), v.z.powf(power))
+    v.powf(power)
 }
 
 pub fn exp(v: Vec3) -> Vec3 {
-    vec3(v.x.exp(), v.y.exp(), v.z.exp())
+    v.exp()
 }
 
 /// Based on: https://seblagarde.wordpress.com/2014/12/01/inverse-trigonometric-functions-gpu-optimization-for-amd-gcn-architecture/
@@ -80,24 +80,6 @@ impl Clamp for f32 {
     }
 }
 
-impl Clamp for Vec2 {
-    fn clamp(self, min: Self, max: Self) -> Self {
-        self.max(min).min(max)
-    }
-}
-
-impl Clamp for Vec3 {
-    fn clamp(self, min: Self, max: Self) -> Self {
-        self.max(min).min(max)
-    }
-}
-
-impl Clamp for Vec4 {
-    fn clamp(self, min: Self, max: Self) -> Self {
-        self.max(min).min(max)
-    }
-}
-
 pub trait FloatExt {
     fn gl_fract(self) -> Self;
     fn rem_euclid(self, rhs: Self) -> Self;
@@ -131,7 +113,7 @@ impl FloatExt for f32 {
     }
 
     fn deg_to_radians(self) -> f32 {
-        PI * self / 180.0
+        self.to_radians()
     }
 
     fn step(self, x: f32) -> f32 {
@@ -153,14 +135,12 @@ pub trait VecExt {
     fn rem_euclid(self, m: f32) -> Self;
     fn rem_euclid_vec(self, m: Self) -> Self;
     fn step(self, other: Self) -> Self;
-    fn reflect(self, normal: Self) -> Self;
-    fn distance(self, other: Self) -> f32;
     fn gl_sign(self) -> Self;
 }
 
 impl VecExt for Vec2 {
     fn gl_fract(self) -> Vec2 {
-        vec2(self.x.gl_fract(), self.y.gl_fract())
+        self.fract_gl()
     }
 
     fn sin(self) -> Vec2 {
@@ -184,23 +164,15 @@ impl VecExt for Vec2 {
     }
 
     fn rem_euclid(self, m: f32) -> Vec2 {
-        vec2(self.x.rem_euclid(m), self.y.rem_euclid(m))
+        Vec2::rem_euclid(self, Vec2::splat(m))
     }
 
     fn rem_euclid_vec(self, m: Vec2) -> Vec2 {
-        vec2(self.x.rem_euclid(m.x), self.y.rem_euclid(m.y))
+        Vec2::rem_euclid(self, m)
     }
 
     fn step(self, other: Vec2) -> Vec2 {
         vec2(self.x.step(other.x), self.y.step(other.y))
-    }
-
-    fn reflect(self, normal: Vec2) -> Vec2 {
-        self - 2.0 * normal.dot(self) * normal
-    }
-
-    fn distance(self, other: Vec2) -> f32 {
-        (self - other).length()
     }
 
     fn gl_sign(self) -> Vec2 {
@@ -210,7 +182,7 @@ impl VecExt for Vec2 {
 
 impl VecExt for Vec3 {
     fn gl_fract(self) -> Vec3 {
-        vec3(self.x.gl_fract(), self.y.gl_fract(), self.z.gl_fract())
+        self.fract_gl()
     }
 
     fn sin(self) -> Vec3 {
@@ -234,19 +206,11 @@ impl VecExt for Vec3 {
     }
 
     fn rem_euclid(self, m: f32) -> Vec3 {
-        vec3(
-            self.x.rem_euclid(m),
-            self.y.rem_euclid(m),
-            self.z.rem_euclid(m),
-        )
+        Vec3::rem_euclid(self, Vec3::splat(m))
     }
 
     fn rem_euclid_vec(self, m: Vec3) -> Vec3 {
-        vec3(
-            self.x.rem_euclid(m.x),
-            self.y.rem_euclid(m.y),
-            self.z.rem_euclid(m.z),
-        )
+        Vec3::rem_euclid(self, m)
     }
 
     fn step(self, other: Vec3) -> Vec3 {
@@ -257,14 +221,6 @@ impl VecExt for Vec3 {
         )
     }
 
-    fn reflect(self, normal: Vec3) -> Vec3 {
-        self - 2.0 * normal.dot(self) * normal
-    }
-
-    fn distance(self, other: Vec3) -> f32 {
-        (self - other).length()
-    }
-
     fn gl_sign(self) -> Vec3 {
         vec3(self.x.gl_sign(), self.y.gl_sign(), self.z.gl_sign())
     }
@@ -272,12 +228,7 @@ impl VecExt for Vec3 {
 
 impl VecExt for Vec4 {
     fn gl_fract(self) -> Vec4 {
-        vec4(
-            self.x.gl_fract(),
-            self.y.gl_fract(),
-            self.z.gl_fract(),
-            self.w.gl_fract(),
-        )
+        self.fract_gl()
     }
 
     fn sin(self) -> Vec4 {
@@ -306,21 +257,11 @@ impl VecExt for Vec4 {
     }
 
     fn rem_euclid(self, m: f32) -> Vec4 {
-        vec4(
-            self.x.rem_euclid(m),
-            self.y.rem_euclid(m),
-            self.z.rem_euclid(m),
-            self.w.rem_euclid(m),
-        )
+        Vec4::rem_euclid(self, Vec4::splat(m))
     }
 
     fn rem_euclid_vec(self, m: Vec4) -> Vec4 {
-        vec4(
-            self.x.rem_euclid(m.x),
-            self.y.rem_euclid(m.y),
-            self.z.rem_euclid(m.z),
-            self.w.rem_euclid(m.w),
-        )
+        Vec4::rem_euclid(self, m)
     }
 
     fn step(self, other: Vec4) -> Vec4 {
@@ -330,14 +271,6 @@ impl VecExt for Vec4 {
             self.z.step(other.z),
             self.w.step(other.w),
         )
-    }
-
-    fn reflect(self, normal: Vec4) -> Vec4 {
-        self - 2.0 * normal.dot(self) * normal
-    }
-
-    fn distance(self, other: Vec4) -> f32 {
-        (self - other).length()
     }
 
     fn gl_sign(self) -> Vec4 {
