@@ -19,8 +19,8 @@
 //! */
 //! ```
 
-use spirv_std::arch::Derivative;
 use shared::*;
+use spirv_std::arch::Derivative;
 use spirv_std::glam::{vec2, vec3, vec4, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 
 // Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
