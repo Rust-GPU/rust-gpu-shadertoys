@@ -74,7 +74,7 @@ fn inversion(uv: Vec2, r: f32) -> Vec2 {
 }
 // seeded random number
 fn hash(s: Vec2) -> f32 {
-    ((s.dot(vec2(12.9898, 78.2333))).sin() * 43758.5453123).gl_fract()
+    ((s.dot(vec2(12.9898, 78.2333))).sin() * 43758.5453123).fract_gl()
 }
 
 // this is an algorithm to construct an apollonian packing with a descartes configuration

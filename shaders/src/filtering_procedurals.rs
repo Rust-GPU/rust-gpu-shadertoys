@@ -217,7 +217,7 @@ fn mytexture(mut p: Vec3, _n: Vec3, matid: f32) -> Vec3 {
     let ip: Vec3 = (p / 20.0).floor();
     let fp: Vec3 = (Vec3::splat(0.5) + p / 20.0).fract_gl();
 
-    let mut id: f32 = ((ip.dot(vec3(127.1, 311.7, 74.7))).sin() * 58.5453123).gl_fract();
+    let mut id: f32 = ((ip.dot(vec3(127.1, 311.7, 74.7))).sin() * 58.5453123).fract_gl();
     id = mix(id, 0.3, matid);
 
     let f: f32 = (ip.x + (ip.y + ip.z.rem_euclid(2.0)).rem_euclid(2.0)).rem_euclid(2.0);

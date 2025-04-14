@@ -85,11 +85,11 @@ fn v21(a: Vec2) -> f32 {
     a.x + a.y * 37.0
 }
 fn hash11(a: f32) -> f32 {
-    (a.sin() * 10403.9).gl_fract()
+    (a.sin() * 10403.9).fract_gl()
 }
 fn hash21(uv: Vec2) -> f32 {
     let f: f32 = uv.x + uv.y * 37.0;
-    (f.sin() * 104003.9).gl_fract()
+    (f.sin() * 104003.9).fract_gl()
 }
 fn hash22(uv: Vec2) -> Vec2 {
     let f: f32 = uv.x + uv.y * 37.0;
@@ -99,15 +99,15 @@ fn _hash12(f: f32) -> Vec2 {
     (f.cos() * vec2(10003.579, 37049.7)).fract_gl()
 }
 fn _hash1d(u: f32) -> f32 {
-    (u.sin() * 143.9).gl_fract() // scale this down to kill the jitters
+    (u.sin() * 143.9).fract_gl() // scale this down to kill the jitters
 }
 fn hash2d(uv: Vec2) -> f32 {
     let f: f32 = uv.x + uv.y * 37.0;
-    (f.sin() * 104003.9).gl_fract()
+    (f.sin() * 104003.9).fract_gl()
 }
 fn hash3d(uv: Vec3) -> f32 {
     let f: f32 = uv.x + uv.y * 37.0 + uv.z * 521.0;
-    (f.sin() * 110003.9).gl_fract()
+    (f.sin() * 110003.9).fract_gl()
 }
 fn mix_p(f0: f32, f1: f32, a: f32) -> f32 {
     mix(f0, f1, a * a * (3.0 - 2.0 * a))
@@ -415,7 +415,7 @@ impl<C0> State<C0> {
         let mut repeat_dist: f32 = 0.25; // Car density bumper to bumper
                                          // If we are going north/south instead of east/west (?) make cars that are
                                          // stopped in the street so we don't have collisions.
-        if (rep.x.gl_fract() - 0.5).abs() < 0.35 {
+        if (rep.x.fract_gl() - 0.5).abs() < 0.35 {
             p2.x += 0.05;
             p2 = (p2.zx() * vec2(-1.0, 1.0)).extend(p2.y).xzy(); // Rotate 90 degrees
             rep = p2.xz().extend(rep.y).xzy();
@@ -463,7 +463,7 @@ fn calc_windows(
     window = window.max(mix(
         0.2,
         1.0,
-        ((pos.y * 20.0 - 0.35).gl_fract() * 2.0 + 0.1).floor(),
+        ((pos.y * 20.0 - 0.35).fract_gl() * 2.0 + 0.1).floor(),
     ));
     if pos.y < 0.05 {
         window = 1.0;
@@ -475,12 +475,12 @@ fn calc_windows(
     window = window.max(mix(
         0.2,
         1.0,
-        ((pos.x * 40.0 + 0.05).gl_fract() * win_width).floor(),
+        ((pos.x * 40.0 + 0.05).fract_gl() * win_width).floor(),
     ));
     window = window.max(mix(
         0.2,
         1.0,
-        ((pos.z * 40.0 + 0.05).gl_fract() * win_width).floor(),
+        ((pos.z * 40.0 + 0.05).fract_gl() * win_width).floor(),
     ));
     if window < 0.5 {
         *window_ref += 1.0;
@@ -547,7 +547,7 @@ impl<C0: SampleCube> State<C0> {
             let t5: f32 = 16.0;
             let t6: f32 = 18.0;*/
             // Repeat the animation after time t6
-            self.local_time = (self.local_time / t6).gl_fract() * t6;
+            self.local_time = (self.local_time / t6).fract_gl() * t6;
             if self.local_time < t1 {
                 let time: f32 = self.local_time - t0;
                 let alpha: f32 = time / (t1 - t0);
@@ -648,16 +648,16 @@ impl<C0: SampleCube> State<C0> {
             // The distance function is not continuous at city block boundaries,
             // so we have to pause our ray march at each voxel boundary.
             let mut walk: f32 = dist_and_mat.x;
-            let mut dx: f32 = -pos.x.gl_fract();
+            let mut dx: f32 = -pos.x.fract_gl();
             if ray_vec.x > 0.0 {
-                dx = (-pos.x).gl_fract();
+                dx = (-pos.x).fract_gl();
             }
-            let mut dz: f32 = -pos.z.gl_fract();
+            let mut dz: f32 = -pos.z.fract_gl();
             if ray_vec.z > 0.0 {
-                dz = (-pos.z).gl_fract();
+                dz = (-pos.z).fract_gl();
             }
             let mut nearest_voxel: f32 =
-                (dx / ray_vec.x).gl_fract().min((dz / ray_vec.z).gl_fract()) + VOXEL_PAD;
+                (dx / ray_vec.x).fract_gl().min((dz / ray_vec.z).fract_gl()) + VOXEL_PAD;
             nearest_voxel = VOXEL_PAD.max(nearest_voxel); // hack that assumes streets and sidewalks are this wide.
                                                           //nearestVoxel = nearestVoxel.max(t * 0.02); // hack to stop voxel walking in the distance.
             walk = walk.min(nearest_voxel);
@@ -729,17 +729,17 @@ impl<C0: SampleCube> State<C0> {
                 }
 
                 let mut walk: f32 = temp_dist;
-                let mut dx: f32 = -shadow_pos.x.gl_fract();
+                let mut dx: f32 = -shadow_pos.x.fract_gl();
                 if self.sun_dir.x > 0.0 {
-                    dx = (-shadow_pos.x).gl_fract();
+                    dx = (-shadow_pos.x).fract_gl();
                 }
-                let mut dz: f32 = -shadow_pos.z.gl_fract();
+                let mut dz: f32 = -shadow_pos.z.fract_gl();
                 if self.sun_dir.z > 0.0 {
-                    dz = (-shadow_pos.z).gl_fract();
+                    dz = (-shadow_pos.z).fract_gl();
                 }
                 let mut nearest_voxel: f32 = (dx / self.sun_dir.x)
-                    .gl_fract()
-                    .min((dz / self.sun_dir.z).gl_fract())
+                    .fract_gl()
+                    .min((dz / self.sun_dir.z).fract_gl())
                     + small_val;
                 nearest_voxel = nearest_voxel.max(0.2); // hack that assumes streets and sidewalks are this wide.
                 walk = walk.min(nearest_voxel);
@@ -825,8 +825,8 @@ impl<C0: SampleCube> State<C0> {
                 normal = (normal + n_temp * 0.2).normalize();
             } else {
                 // Draw the road
-                let xroad: f32 = ((pos.x + 0.5).gl_fract() - 0.5).abs();
-                let zroad: f32 = ((pos.z + 0.5).gl_fract() - 0.5).abs();
+                let xroad: f32 = ((pos.x + 0.5).fract_gl() - 0.5).abs();
+                let zroad: f32 = ((pos.z + 0.5).fract_gl() - 0.5).abs();
                 let road: f32 = saturate((xroad.min(zroad) - 0.143) * 480.0);
                 tex_color *= 1.0 - normal.y * 0.95 * hash21(block * 9.87) * road; // change rooftop color
                 tex_color *= mix(0.1, 1.0, road);
@@ -841,8 +841,8 @@ impl<C0: SampleCube> State<C0> {
                 let mut white_line: f32 = saturate(1.0 - (xroad.min(zroad) - 0.06) * 480.0);
                 white_line *= saturate((xroad.min(zroad) - 0.056) * 480.0);
                 white_line *= saturate((xroad * xroad + zroad * zroad - 0.05) * 880.0);
-                white_line *= saturate(1.0 - ((zroad * 8.0).gl_fract() - 0.5) * 280.0); // dotted line
-                white_line *= saturate(1.0 - ((xroad * 8.0).gl_fract() - 0.5) * 280.0);
+                white_line *= saturate(1.0 - ((zroad * 8.0).fract_gl() - 0.5) * 280.0); // dotted line
+                white_line *= saturate(1.0 - ((xroad * 8.0).fract_gl() - 0.5) * 280.0);
                 tex_color = mix(tex_color, Vec3::splat(0.5), white_line);
 
                 white_line = saturate(1.0 - (xroad.min(zroad) - 0.11) * 480.0);
@@ -851,12 +851,12 @@ impl<C0: SampleCube> State<C0> {
                 tex_color = mix(tex_color, Vec3::splat(0.5), white_line);
 
                 // crosswalk
-                let mut cross_walk: f32 = saturate(1.0 - ((xroad * 40.0).gl_fract() - 0.5) * 280.0);
+                let mut cross_walk: f32 = saturate(1.0 - ((xroad * 40.0).fract_gl() - 0.5) * 280.0);
                 cross_walk *= saturate((zroad - 0.15) * 880.0);
                 cross_walk *= saturate((-zroad + 0.21) * 880.0) * (1.0 - road);
                 cross_walk *= n * n;
                 tex_color = mix(tex_color, Vec3::splat(0.25), cross_walk);
-                cross_walk = saturate(1.0 - ((zroad * 40.0).gl_fract() - 0.5) * 280.0);
+                cross_walk = saturate(1.0 - ((zroad * 40.0).fract_gl() - 0.5) * 280.0);
                 cross_walk *= saturate((xroad - 0.15) * 880.0);
                 cross_walk *= saturate((-xroad + 0.21) * 880.0) * (1.0 - road);
                 cross_walk *= n * n;
@@ -996,9 +996,9 @@ impl<C0: SampleCube> State<C0> {
         let block_res: Vec2 = (self.inputs.resolution.xy() / block_size).floor() + Vec2::ONE;
         // ugly bug with mod.
         //float blockX = mod(frame, blockRes.x);
-        let block_x: f32 = (frame / block_res.x).gl_fract() * block_res.x;
+        let block_x: f32 = (frame / block_res.x).fract_gl() * block_res.x;
         //float blockY = mod(floor(frame / blockRes.x), blockRes.y);
-        let block_y: f32 = ((frame / block_res.x).floor() / block_res.y).gl_fract() * block_res.y;
+        let block_y: f32 = ((frame / block_res.x).floor() / block_res.y).fract_gl() * block_res.y;
         // Don't draw anything outside the current block.
         if (frag_coord.x - block_x * block_size >= block_size)
             || (frag_coord.x - (block_x - 1.0) * block_size < block_size)

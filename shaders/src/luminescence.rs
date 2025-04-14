@@ -87,7 +87,7 @@ const ACCENT_COLOR2: Vec3 = vec3(1.0, 0.5, 0.1);
 const SECOND_COLOR2: Vec3 = vec3(0.1, 0.5, 0.6);
 
 fn _n1(x: f32) -> f32 {
-    (x.sin() * 5346.1764).gl_fract()
+    (x.sin() * 5346.1764).fract_gl()
 }
 fn _n2(x: f32, y: f32) -> f32 {
     _n1(x + y * 23414.324)
@@ -96,7 +96,7 @@ fn _n2(x: f32, y: f32) -> f32 {
 fn n3(mut p: Vec3) -> f32 {
     p = (p * 0.3183099 + Vec3::splat(0.1)).fract_gl();
     p *= 17.0;
-    (p.x * p.y * p.z * (p.x + p.y + p.z)).gl_fract()
+    (p.x * p.y * p.z * (p.x + p.y + p.z)).fract_gl()
 }
 
 #[derive(Clone, Copy, Default)]
@@ -452,7 +452,7 @@ impl State {
 
         let mut s2: f32 = 5. * p.x / TWO_PI;
         let _id: f32 = s2.floor();
-        s2 = s2.gl_fract();
+        s2 = s2.fract_gl();
         let ep: Vec2 = vec2(s2 - 0.5, p.y - 0.6);
         let ed: f32 = ep.length();
         let e: f32 = b(0.35, 0.45, 0.05, ed);

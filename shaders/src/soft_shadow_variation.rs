@@ -46,7 +46,7 @@ fn sd_box(p: Vec3, b: Vec3) -> f32 {
 //------------------------------------------------------------------
 
 fn map(pos: Vec3) -> f32 {
-    let qos: Vec3 = vec3((pos.x + 0.5).gl_fract() - 0.5, pos.y, pos.z);
+    let qos: Vec3 = vec3((pos.x + 0.5).fract_gl() - 0.5, pos.y, pos.z);
     return sd_plane(pos - vec3(0.0, 0.00, 0.0))
         .min(sd_box(qos - vec3(0.0, 0.25, 0.0), vec3(0.2, 0.5, 0.2)));
 }
@@ -192,7 +192,7 @@ impl Inputs {
         // camera-to-world transformation
         let ca: Mat3 = set_camera(ro, ta, 0.0);
 
-        let technique: i32 = if (self.time / 2.0).gl_fract() > 0.5 {
+        let technique: i32 = if (self.time / 2.0).fract_gl() > 0.5 {
             1
         } else {
             0

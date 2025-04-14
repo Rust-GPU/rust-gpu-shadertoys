@@ -73,14 +73,14 @@ const PIH: f32 = 1.5707963267949;
 const _PI: f32 = 3.1415927;
 const NUM_OCTAVES: i32 = 4;
 fn hash(n: f32) -> f32 {
-    (n.sin() * 1e4).gl_fract()
+    (n.sin() * 1e4).fract_gl()
 }
 fn hash_vec2(p: Vec2) -> f32 {
-    (1e4 * (17.0 * p.x + p.y * 0.1).sin() * (0.1 + (p.y * 13.0 + p.x).sin().abs())).gl_fract()
+    (1e4 * (17.0 * p.x + p.y * 0.1).sin() * (0.1 + (p.y * 13.0 + p.x).sin().abs())).fract_gl()
 }
 fn noise(x: f32) -> f32 {
     let i: f32 = x.floor();
-    let f: f32 = x.gl_fract();
+    let f: f32 = x.fract_gl();
     let u: f32 = f * f * (3.0 - 2.0 * f);
     mix(hash(i), hash(i + 1.0), u)
 }

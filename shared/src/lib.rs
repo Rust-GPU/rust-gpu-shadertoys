@@ -73,14 +73,14 @@ impl Clamp for f32 {
 }
 
 pub trait FloatExt {
-    fn gl_fract(self) -> Self;
+    fn fract_gl(self) -> Self;
     fn rem_euclid(self, rhs: Self) -> Self;
     fn gl_sign(self) -> Self;
     fn step(self, x: Self) -> Self;
 }
 
 impl FloatExt for f32 {
-    fn gl_fract(self) -> f32 {
+    fn fract_gl(self) -> f32 {
         self - self.floor()
     }
 

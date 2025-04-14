@@ -77,7 +77,7 @@ const SQRT3: f32 = 1.73205080757;
 fn rand(mut seed: Vec3) -> f32 {
     seed = (seed * vec3(5.3983, 5.4427, 6.9371)).fract_gl();
     seed += Vec3::splat(seed.yzx().dot(seed + vec3(21.5351, 14.3137, 15.3219)));
-    (seed.x * seed.y * seed.z * 95.4337).gl_fract()
+    (seed.x * seed.y * seed.z * 95.4337).fract_gl()
 }
 
 impl State {
@@ -263,7 +263,7 @@ impl State {
         let mut mode_angle: f32 = PI * (self.inputs.time * 0.2).cos();
         mode_angle = (frag - vec2((self.inputs.time * 2.0).cos(), 0.0))
             .dot(vec2(mode_angle.cos(), mode_angle.sin()));
-        let mut mode_voxel: f32 = 0.5.step((mode_timing / (4.0 * PI)).gl_fract());
+        let mut mode_voxel: f32 = 0.5.step((mode_timing / (4.0 * PI)).fract_gl());
         mode_timing = mode_timing.cos();
         let mode_3d: f32 = smoothstep(0.8, 0.5, mode_timing);
         let mode_switch: f32 = smoothstep(0.995, 1.0, mode_timing)

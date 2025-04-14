@@ -71,7 +71,7 @@ fn from_euler(ang: Vec3) -> Mat3 {
 }
 fn hash(p: Vec2) -> f32 {
     let h: f32 = p.dot(vec2(127.1, 311.7));
-    (h.sin() * 43758.5453123).gl_fract()
+    (h.sin() * 43758.5453123).fract_gl()
 }
 fn noise(p: Vec2) -> f32 {
     let i: Vec2 = p.floor();

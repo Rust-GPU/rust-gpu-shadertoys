@@ -414,7 +414,7 @@ impl State {
         }
         let t: f32 = self.time / SCENE_DURATION;
         let scene: f32 = t.rem_euclid(3.0).floor();
-        let mut blend: f32 = t.gl_fract();
+        let mut blend: f32 = t.fract_gl();
         let delay: f32 = (SCENE_DURATION - CROSSFADE_DURATION) / SCENE_DURATION;
         blend = (blend - delay).max(0.0) / (1.0 - delay);
         blend = sine_in_out(blend);

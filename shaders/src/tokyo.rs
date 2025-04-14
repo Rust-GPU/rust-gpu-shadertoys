@@ -76,7 +76,7 @@ impl State {
 // noises
 
 fn hash(n: f32) -> f32 {
-    (n.sin() * 687.3123).gl_fract()
+    (n.sin() * 687.3123).fract_gl()
 }
 
 fn noise(x: Vec2) -> f32 {

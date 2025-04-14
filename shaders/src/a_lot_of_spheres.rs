@@ -43,7 +43,7 @@ const SPEED: f32 = 0.5;
 
 const _MR: Mat2 = mat2(vec2(0.84147, 0.54030), vec2(0.54030, -0.84147));
 fn hash(n: f32) -> f32 {
-    (n.sin() * 43758.5453).gl_fract()
+    (n.sin() * 43758.5453).fract_gl()
 }
 fn _hash2(n: f32) -> Vec2 {
     (vec2(n, n + 1.0).sin() * vec2(2.1459123, 3.3490423)).fract_gl()
@@ -105,7 +105,7 @@ impl Inputs {
     fn get_moving_sphere_position(&self, grid: Vec2, sphere_offset: Vec2, center: &mut Vec3) {
         // falling?
         let s: f32 = 0.1 + hash(grid.x * 1.23114 + 5.342 + 74.324231 * grid.y);
-        let t: f32 = (14. * s + self.time / s * 0.3).gl_fract();
+        let t: f32 = (14. * s + self.time / s * 0.3).fract_gl();
 
         let y: f32 = s * MAXHEIGHT * (4.0 * t * (1. - t)).abs();
         let offset: Vec2 = grid + sphere_offset;
