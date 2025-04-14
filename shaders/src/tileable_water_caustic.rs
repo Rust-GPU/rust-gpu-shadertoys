@@ -70,7 +70,7 @@ impl Inputs {
 
             let f: f32 = (self.time * 0.5).rem_euclid(2.0).floor(); // Flash value.
             let first: Vec2 = pixel.step(uv) * f; // Rule out first screen pixels and flash.
-            uv = uv.gl_fract().step(pixel); // Add one line of pixels per tile.
+            uv = uv.fract_gl().step(pixel); // Add one line of pixels per tile.
             colour = mix(
                 colour,
                 vec3(1.0, 1.0, 0.0),

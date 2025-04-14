@@ -81,7 +81,7 @@ fn hash(n: f32) -> f32 {
 
 fn noise(x: Vec2) -> f32 {
     let p: Vec2 = x.floor();
-    let mut f: Vec2 = x.gl_fract();
+    let mut f: Vec2 = x.fract_gl();
     f = f * f * (Vec2::splat(3.0) - 2.0 * f);
     let n: f32 = p.x + p.y * 157.0;
     mix(

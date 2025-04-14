@@ -46,16 +46,16 @@ fn hash(n: f32) -> f32 {
     (n.sin() * 43758.5453).gl_fract()
 }
 fn _hash2(n: f32) -> Vec2 {
-    (vec2(n, n + 1.0).sin() * vec2(2.1459123, 3.3490423)).gl_fract()
+    (vec2(n, n + 1.0).sin() * vec2(2.1459123, 3.3490423)).fract_gl()
 }
 fn hash2_vec(n: Vec2) -> Vec2 {
-    (vec2(n.x * n.y, n.x + n.y).sin() * vec2(2.1459123, 3.3490423)).gl_fract()
+    (vec2(n.x * n.y, n.x + n.y).sin() * vec2(2.1459123, 3.3490423)).fract_gl()
 }
 fn _hash3(n: f32) -> Vec3 {
-    (vec3(n, n + 1.0, n + 2.0).sin() * vec3(3.5453123, 4.1459123, 1.3490423)).gl_fract()
+    (vec3(n, n + 1.0, n + 2.0).sin() * vec3(3.5453123, 4.1459123, 1.3490423)).fract_gl()
 }
 fn hash3_vec(n: Vec2) -> Vec3 {
-    (vec3(n.x, n.y, n.x + 2.0).sin() * vec3(3.5453123, 4.1459123, 1.3490423)).gl_fract()
+    (vec3(n.x, n.y, n.x + 2.0).sin() * vec3(3.5453123, 4.1459123, 1.3490423)).fract_gl()
 }
 
 //

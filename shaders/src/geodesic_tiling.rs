@@ -147,7 +147,7 @@ struct TriPoints {
 fn closest_tri_points(p: Vec2) -> TriPoints {
     let p_tri: Vec2 = CART2HEX * p;
     let pi: Vec2 = p_tri.floor();
-    let pf: Vec2 = p_tri.gl_fract();
+    let pf: Vec2 = p_tri.fract_gl();
 
     let split1: f32 = pf.y.step(pf.x);
     let split2: f32 = pf.x.step(pf.y);

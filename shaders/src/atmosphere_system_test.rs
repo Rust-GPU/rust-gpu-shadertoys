@@ -10,7 +10,6 @@
 //! // ----------------------------------------------------------------------------
 //! ```
 
-use shared::*;
 use spirv_std::glam::{vec2, vec3, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4};
 
 // Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
@@ -60,7 +59,7 @@ struct _Plane {
 }
 
 fn rotate_around_x(angle_degrees: f32) -> Mat3 {
-    let angle: f32 = angle_degrees.deg_to_radians();
+    let angle: f32 = angle_degrees.to_radians();
     let _sin: f32 = angle.sin();
     let _cos: f32 = angle.cos();
     Mat3::from_cols_array(&[1.0, 0.0, 0.0, 0.0, _cos, -_sin, 0.0, _sin, _cos])
@@ -230,7 +229,7 @@ impl State {
             if overground {
                 let tau: Vec3 = BETA_R * (optical_depth_r + optical_depth_light_r)
                     + BETA_M * 1.1 * (optical_depth_m + optical_depth_light_m);
-                let attenuation: Vec3 = exp(-tau);
+                let attenuation: Vec3 = Vec3::exp(-tau);
 
                 sum_r += hr * attenuation;
                 sum_m += hm * attenuation;
@@ -245,7 +244,7 @@ impl State {
 
     pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let aspect_ratio: Vec2 = vec2(self.inputs.resolution.x / self.inputs.resolution.y, 1.0);
-        let fov: f32 = 45.0.deg_to_radians().tan();
+        let fov: f32 = 45.0.to_radians().tan();
         let point_ndc: Vec2 = frag_coord / self.inputs.resolution.xy();
         let point_cam: Vec3 = ((2.0 * point_ndc - Vec2::ONE) * aspect_ratio * fov).extend(-1.0);
 

@@ -75,7 +75,7 @@ const SQRT3: f32 = 1.73205080757;
 
 // PRNG (from https://www.shadertoy.com/view/4djSRW)
 fn rand(mut seed: Vec3) -> f32 {
-    seed = (seed * vec3(5.3983, 5.4427, 6.9371)).gl_fract();
+    seed = (seed * vec3(5.3983, 5.4427, 6.9371)).fract_gl();
     seed += Vec3::splat(seed.yzx().dot(seed + vec3(21.5351, 14.3137, 15.3219)));
     (seed.x * seed.y * seed.z * 95.4337).gl_fract()
 }
@@ -170,13 +170,13 @@ impl State {
         let mut ray_step: f32 = 0.0;
         while ray_step < RAY_STEP_MAX {
             if ray_length < ray_length_in_voxel {
-                d.x = self.dist_voxel((*p + Vec3::splat(0.5)).gl_fract() - Vec3::splat(0.5));
+                d.x = self.dist_voxel((*p + Vec3::splat(0.5)).fract_gl() - Vec3::splat(0.5));
                 if d.x < DELTA {
                     break;
                 }
             } else if ray_length < ray_length_check_voxel {
                 let mut ray_delta: Vec3 = (Vec3::splat(0.5)
-                    - ray_sign * ((*p + Vec3::splat(0.5)).gl_fract() - Vec3::splat(0.5)))
+                    - ray_sign * ((*p + Vec3::splat(0.5)).fract_gl() - Vec3::splat(0.5)))
                     * ray_delta_voxel;
                 let d_next: f32 = ray_delta.x.min(ray_delta.y.min(ray_delta.z));
                 d = self.dist_scene((*p + Vec3::splat(0.5)).floor(), &mut p2);
@@ -214,7 +214,7 @@ impl State {
         let h: Vec2 = vec2(DELTA, -DELTA);
         let mut n: Vec3 = Vec3::ZERO;
         if voxelized > 0.5 {
-            p = (p + Vec3::splat(0.5)).gl_fract() - Vec3::splat(0.5);
+            p = (p + Vec3::splat(0.5)).fract_gl() - Vec3::splat(0.5);
             n = h.xxx() * self.dist_voxel(p + h.xxx())
                 + h.xyy() * self.dist_voxel(p + h.xyy())
                 + h.yxy() * self.dist_voxel(p + h.yxy())
@@ -245,7 +245,7 @@ fn hsv2rgb(mut hsv: Vec3) -> Vec3 {
         hsv.z
             * (Vec3::ONE
                 + Vec3::splat(hsv.y)
-                    * (((Vec3::splat(hsv.x) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)).gl_fract() * 6.0
+                    * (((Vec3::splat(hsv.x) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)).fract_gl() * 6.0
                         - Vec3::splat(3.0))
                     .abs()
                         - Vec3::splat(2.0))

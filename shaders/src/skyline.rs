@@ -93,10 +93,10 @@ fn hash21(uv: Vec2) -> f32 {
 }
 fn hash22(uv: Vec2) -> Vec2 {
     let f: f32 = uv.x + uv.y * 37.0;
-    (f.cos() * vec2(10003.579, 37049.7)).gl_fract()
+    (f.cos() * vec2(10003.579, 37049.7)).fract_gl()
 }
 fn _hash12(f: f32) -> Vec2 {
-    (f.cos() * vec2(10003.579, 37049.7)).gl_fract()
+    (f.cos() * vec2(10003.579, 37049.7)).fract_gl()
 }
 fn _hash1d(u: f32) -> f32 {
     (u.sin() * 143.9).gl_fract() // scale this down to kill the jitters
@@ -114,7 +114,7 @@ fn mix_p(f0: f32, f1: f32, a: f32) -> f32 {
 }
 const ZERO_ONE: Vec2 = vec2(0.0, 1.0);
 fn noise2d(uv: Vec2) -> f32 {
-    let fr: Vec2 = uv.gl_fract();
+    let fr: Vec2 = uv.fract_gl();
     let fl: Vec2 = uv.floor();
     let h00: f32 = hash2d(fl);
     let h10: f32 = hash2d(fl + ZERO_ONE.yx());
@@ -123,7 +123,7 @@ fn noise2d(uv: Vec2) -> f32 {
     mix_p(mix_p(h00, h10, fr.x), mix_p(h01, h11, fr.x), fr.y)
 }
 fn noise(uv: Vec3) -> f32 {
-    let fr: Vec3 = uv.gl_fract();
+    let fr: Vec3 = uv.fract_gl();
     let fl: Vec3 = uv.floor();
     let h000: f32 = hash3d(fl);
     let h100: f32 = hash3d(fl + ZERO_ONE.yxx());
@@ -402,7 +402,7 @@ impl<C0> State<C0> {
     fn distance_to_object(&self, p: Vec3) -> Vec2 {
         //p.y += noise2d((p.xz)*0.0625)*8.0; // Hills
         let mut rep: Vec3 = p;
-        rep = (p.xz().gl_fract()).extend(rep.y).xzy(); // [0..1] for representing the position in the city block
+        rep = (p.xz().fract_gl()).extend(rep.y).xzy(); // [0..1] for representing the position in the city block
         let mut dist_and_mat: Vec2 = city_block(rep, p.xz().floor());
 
         // Set up the cars. This is doing a lot of mirroring and repeating because I

@@ -86,7 +86,7 @@ fn noise(x: f32) -> f32 {
 }
 fn noise_vec2(x: Vec2) -> f32 {
     let i: Vec2 = x.floor();
-    let f: Vec2 = x.gl_fract();
+    let f: Vec2 = x.fract_gl();
     let a: f32 = hash_vec2(i);
     let b: f32 = hash_vec2(i + vec2(1.0, 0.0));
     let c: f32 = hash_vec2(i + vec2(0.0, 1.0));

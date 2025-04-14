@@ -223,7 +223,7 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
         .main_image(&mut color, frag_coord),
         _ => {}
     }
-    pow(color.truncate(), 2.2).extend(color.w)
+    Vec3::powf(color.truncate(), 2.2).extend(color.w)
 }
 
 #[allow(unused_attributes)]

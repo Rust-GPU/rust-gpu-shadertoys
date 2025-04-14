@@ -52,12 +52,12 @@ fn hash3(mut p: Vec3) -> Vec3 {
         p.dot(vec3(113.5, 271.9, 124.6)),
     );
 
-    -Vec3::ONE + 2.0 * (p.sin() * 13.5453123).gl_fract()
+    -Vec3::ONE + 2.0 * (p.sin() * 13.5453123).fract_gl()
 }
 
 fn noise(p: Vec3) -> f32 {
     let i: Vec3 = p.floor();
-    let f: Vec3 = p.gl_fract();
+    let f: Vec3 = p.fract_gl();
 
     let u: Vec3 = f * f * (Vec3::splat(3.0) - 2.0 * f);
 
@@ -215,7 +215,7 @@ fn tex_coords(p: Vec3) -> Vec3 {
 fn mytexture(mut p: Vec3, _n: Vec3, matid: f32) -> Vec3 {
     p += Vec3::splat(0.1);
     let ip: Vec3 = (p / 20.0).floor();
-    let fp: Vec3 = (Vec3::splat(0.5) + p / 20.0).gl_fract();
+    let fp: Vec3 = (Vec3::splat(0.5) + p / 20.0).fract_gl();
 
     let mut id: f32 = ((ip.dot(vec3(127.1, 311.7, 74.7))).sin() * 58.5453123).gl_fract();
     id = mix(id, 0.3, matid);

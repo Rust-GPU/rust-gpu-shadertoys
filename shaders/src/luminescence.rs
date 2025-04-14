@@ -94,7 +94,7 @@ fn _n2(x: f32, y: f32) -> f32 {
 }
 
 fn n3(mut p: Vec3) -> f32 {
-    p = (p * 0.3183099 + Vec3::splat(0.1)).gl_fract();
+    p = (p * 0.3183099 + Vec3::splat(0.1)).fract_gl();
     p *= 17.0;
     (p.x * p.y * p.z * (p.x + p.y + p.z)).gl_fract()
 }
@@ -145,7 +145,7 @@ fn repeat(pos: Vec3, size: Vec3) -> Rc {
     o.h = size * 0.5;
     o.id = (pos / size).floor(); // used to give a unique id to each cell
 
-    o.p = pos.rem_euclid_vec(size) - o.h;
+    o.p = pos.rem_euclid(size) - o.h;
     //o.c = o.id*size+o.h;
 
     o
@@ -172,14 +172,14 @@ impl State {
 
 //  3 out, 1 in... DAVE HOSKINS
 fn n31(p: f32) -> Vec3 {
-    let mut p3: Vec3 = (Vec3::splat(p) * vec3(0.1031, 0.11369, 0.13787)).gl_fract();
+    let mut p3: Vec3 = (Vec3::splat(p) * vec3(0.1031, 0.11369, 0.13787)).fract_gl();
     p3 += Vec3::splat(p3.dot(p3.yzx() + Vec3::splat(19.19)));
     vec3(
         (p3.x + p3.y) * p3.z,
         (p3.x + p3.z) * p3.y,
         (p3.y + p3.z) * p3.x,
     )
-    .gl_fract()
+    .fract_gl()
 }
 
 // DE functions from IQ

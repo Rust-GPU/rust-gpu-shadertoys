@@ -692,8 +692,8 @@ fn checkers_grad_box(p: Vec2, dpdx: Vec2, dpdy: Vec2) -> f32 {
     let w: Vec2 = dpdx.abs() + dpdy.abs() + Vec2::splat(0.001);
     // analytical integral (box filter)
     let i: Vec2 = 2.0
-        * ((((p - 0.5 * w) * 0.5).gl_fract() - Vec2::splat(0.5)).abs()
-            - (((p + 0.5 * w) * 0.5).gl_fract() - Vec2::splat(0.5)).abs())
+        * ((((p - 0.5 * w) * 0.5).fract_gl() - Vec2::splat(0.5)).abs()
+            - (((p + 0.5 * w) * 0.5).fract_gl() - Vec2::splat(0.5)).abs())
         / w;
     // xor pattern
     0.5 - 0.5 * i.x * i.y

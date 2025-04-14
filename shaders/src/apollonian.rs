@@ -53,7 +53,7 @@ impl State {
         self.orb = Vec4::splat(1000.0);
         let mut i = 0;
         while i < 8 {
-            p = Vec3::splat(-1.0) + 2.0 * (0.5 * p + Vec3::splat(0.5)).gl_fract();
+            p = Vec3::splat(-1.0) + 2.0 * (0.5 * p + Vec3::splat(0.5)).fract_gl();
 
             let r2: f32 = p.dot(p);
 

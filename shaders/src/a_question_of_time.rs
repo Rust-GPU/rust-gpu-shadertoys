@@ -159,7 +159,7 @@ impl Inputs {
 
         // drag your mouse to apply circle inversion
         if ms.y != -2.0 && ms.w > -2.0 {
-            uv = inversion(uv, (60.0.deg_to_radians()).cos());
+            uv = inversion(uv, 60.0.to_radians().cos());
             ci = ms.xy();
         }
 

@@ -74,11 +74,11 @@ const NC0: Vec4 = vec4(0.0, 157.0, 113.0, 270.0);
 const NC1: Vec4 = vec4(1.0, 158.0, 114.0, 271.0);
 
 fn hash4(n: Vec4) -> Vec4 {
-    (n.sin() * 1399763.5453123).gl_fract()
+    (n.sin() * 1399763.5453123).fract_gl()
 }
 fn noise2(x: Vec2) -> f32 {
     let p: Vec2 = x.floor();
-    let mut f: Vec2 = x.gl_fract();
+    let mut f: Vec2 = x.fract_gl();
     f = f * f * (Vec2::splat(3.0) - 2.0 * f);
     let n: f32 = p.x + p.y * 157.0;
     let nc0 = NC0;
@@ -91,7 +91,7 @@ fn noise2(x: Vec2) -> f32 {
 fn noise222(x: Vec2, y: Vec2, z: Vec2) -> f32 {
     let lx: Vec4 = vec4(x.x * y.x, x.y * y.x, x.x * y.y, x.y * y.y);
     let p: Vec4 = lx.floor();
-    let mut f: Vec4 = lx.gl_fract();
+    let mut f: Vec4 = lx.fract_gl();
     f = f * f * (Vec4::splat(3.0) - 2.0 * f);
     let n: Vec2 = p.xz() + p.yw() * 157.0;
     let h: Vec4 = mix(
@@ -104,7 +104,7 @@ fn noise222(x: Vec2, y: Vec2, z: Vec2) -> f32 {
 
 fn noise3(x: Vec3) -> f32 {
     let p: Vec3 = x.floor();
-    let mut f: Vec3 = x.gl_fract();
+    let mut f: Vec3 = x.fract_gl();
     f = f * f * (Vec3::splat(3.0) - 2.0 * f);
     let n: f32 = p.x + p.yz().dot(vec2(157.0, 113.0));
     let s1: Vec4 = mix(

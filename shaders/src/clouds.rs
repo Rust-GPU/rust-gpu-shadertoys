@@ -27,7 +27,7 @@ const M: Mat2 = mat2(vec2(1.6, 1.2), vec2(-1.2, 1.6));
 
 fn hash(mut p: Vec2) -> Vec2 {
     p = vec2(p.dot(vec2(127.1, 311.7)), p.dot(vec2(269.5, 183.3)));
-    Vec2::splat(-1.0) + 2.0 * (p.sin() * 43758.5453123).gl_fract()
+    Vec2::splat(-1.0) + 2.0 * (p.sin() * 43758.5453123).fract_gl()
 }
 
 fn noise(p: Vec2) -> f32 {
