@@ -165,7 +165,7 @@ impl State {
         let mut ray_length: f32 = 0.0;
         let mut ray_length_in_voxel: f32 = 0.0;
         let mut ray_length_check_voxel: f32 = 0.0;
-        let ray_sign: Vec3 = ray.gl_sign();
+        let ray_sign: Vec3 = ray.sign_gl();
         let ray_delta_voxel: Vec3 = ray_sign / ray;
         for _ in 0..RAY_STEP_MAX {
             if ray_length < ray_length_in_voxel {

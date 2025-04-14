@@ -101,7 +101,7 @@ fn sd_hex_prism(mut p: Vec3, h: Vec2) -> f32 {
     p = p.abs();
     p = (p.xy() - 2.0 * k.xy().dot(p.xy()).min(0.0) * k.xy()).extend(p.z);
     let d: Vec2 = vec2(
-        (p.xy() - vec2(p.x.clamp(-k.z * h.x, k.z * h.x), h.x)).length() * (p.y - h.x).gl_sign(),
+        (p.xy() - vec2(p.x.clamp(-k.z * h.x, k.z * h.x), h.x)).length() * (p.y - h.x).sign_gl(),
         p.z - h.y,
     );
     d.x.max(d.y).min(0.0) + d.max(Vec2::ZERO).length()
@@ -119,7 +119,7 @@ fn sd_octogon_prism(mut p: Vec3, r: f32, h: f32) -> f32 {
     p = (p.xy() - 2.0 * vec2(-k.x, k.y).dot(p.xy()).min(0.0) * vec2(-k.x, k.y)).extend(p.z);
     // polygon side
     p = (p.xy() - vec2(p.x.clamp(-k.z * r, k.z * r), r)).extend(p.z);
-    let d: Vec2 = vec2(p.xy().length() * p.y.gl_sign(), p.z - h);
+    let d: Vec2 = vec2(p.xy().length() * p.y.sign_gl(), p.z - h);
     d.x.max(d.y).min(0.0) + d.max(Vec2::ZERO).length()
 }
 
@@ -164,11 +164,11 @@ fn sd_round_cone(p: Vec3, a: Vec3, b: Vec3, r1: f32, r2: f32) -> f32 {
     let z2: f32 = z * z * l2;
 
     // single square root!
-    let k: f32 = rr.gl_sign() * rr * rr * x2;
-    if z.gl_sign() * a2 * z2 > k {
+    let k: f32 = rr.sign_gl() * rr * rr * x2;
+    if z.sign_gl() * a2 * z2 > k {
         return (x2 + z2).sqrt() * il2 - r2;
     }
-    if y.gl_sign() * a2 * y2 < k {
+    if y.sign_gl() * a2 * y2 < k {
         return (x2 + y2).sqrt() * il2 - r1;
     }
     ((x2 * a2 * il2).sqrt() + y * rr) * il2 - r1
@@ -184,7 +184,7 @@ fn sd_tri_prism(mut p: Vec3, mut h: Vec2) -> f32 {
         p = (vec2(p.x - k * p.y, -k * p.x - p.y) / 2.0).extend(p.z);
     }
     p.x -= p.x.clamp(-2.0, 0.0);
-    let d1: f32 = p.xy().length() * (-p.y).gl_sign() * h.x;
+    let d1: f32 = p.xy().length() * (-p.y).sign_gl() * h.x;
     let d2: f32 = p.z.abs() - h.y;
     vec2(d1, d2).max(Vec2::ZERO).length() + d1.max(d2).min(0.0)
 }
@@ -211,7 +211,7 @@ fn sd_cylinder(p: Vec3, a: Vec3, b: Vec3, r: f32) -> f32 {
     } else {
         (if x > 0.0 { x2 } else { 0.0 }) + if y > 0.0 { y2 } else { 0.0 }
     };
-    d.gl_sign() * d.abs().sqrt() / baba
+    d.sign_gl() * d.abs().sqrt() / baba
 }
 
 // vertical
@@ -221,10 +221,10 @@ fn sd_cone(p: Vec3, c: Vec2, h: f32) -> f32 {
 
     let a: Vec2 = w - q * (w.dot(q) / q.dot(q)).clamp(0.0, 1.0);
     let b: Vec2 = w - q * vec2((w.x / q.x).clamp(0.0, 1.0), 1.0);
-    let k: f32 = q.y.gl_sign();
+    let k: f32 = q.y.sign_gl();
     let d: f32 = a.dot(a).min(b.dot(b));
     let s: f32 = (k * (w.x * q.y - w.y * q.x)).max(k * (w.y - q.y));
-    d.sqrt() * s.gl_sign()
+    d.sqrt() * s.sign_gl()
 }
 
 fn sd_capped_cone_vertical(p: Vec3, h: f32, r1: f32, r2: f32) -> f32 {
@@ -270,7 +270,7 @@ fn sd_solid_angle(pos: Vec3, c: Vec2, ra: f32) -> f32 {
     let p: Vec2 = vec2(pos.xz().length(), pos.y);
     let l: f32 = p.length() - ra;
     let m: f32 = (p - c * p.dot(c).clamp(0.0, ra)).length();
-    l.max(m * (c.y * p.x - c.x * p.y).gl_sign())
+    l.max(m * (c.y * p.x - c.x * p.y).sign_gl())
 }
 
 fn sd_octahedron(mut p: Vec3, s: f32) -> f32 {
@@ -333,7 +333,7 @@ fn sd_pyramid(mut p: Vec3, h: f32) -> f32 {
     };
 
     // recover 3D and scale, and add sign
-    ((d2 + q.z * q.z) / m2).sqrt() * q.z.max(-p.y).gl_sign()
+    ((d2 + q.z * q.z) / m2).sqrt() * q.z.max(-p.y).sign_gl()
 }
 
 // la,lb=semi axis, h=height, ra=corner
@@ -343,7 +343,7 @@ fn sd_rhombus(mut p: Vec3, la: f32, lb: f32, h: f32, ra: f32) -> f32 {
     let f: f32 = (ndot(b, b - 2.0 * p.xz()) / b.dot(b)).clamp(-1.0, 1.0);
     let q: Vec2 = vec2(
         (p.xz() - 0.5 * b * vec2(1.0 - f, 1.0 + f)).length()
-            * (p.x * b.y + p.z * b.x - b.x * b.y).gl_sign()
+            * (p.x * b.y + p.z * b.x - b.x * b.y).sign_gl()
             - ra,
         p.y - h,
     );

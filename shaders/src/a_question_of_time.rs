@@ -203,7 +203,7 @@ impl Inputs {
 
             // needles rotation
             let uvrh: Vec2 = uvr_rotate(
-                (hash(Vec2::splat(uv_apo.z)) * d * 180.0).cos().gl_sign()
+                (hash(Vec2::splat(uv_apo.z)) * d * 180.0).cos().sign_gl()
                     * d
                     * self.time
                     * (1.0 / uv_apo.z * 10.0)
@@ -214,7 +214,7 @@ impl Inputs {
             let uvrm: Vec2 = uvr_rotate(
                 (hash(Vec2::splat(uv_apo.z) * 4.0) * d * 180.0)
                     .cos()
-                    .gl_sign()
+                    .sign_gl()
                     * d
                     * self.time
                     * (1.0 / uv_apo.z * 120.0)
@@ -258,7 +258,7 @@ impl Inputs {
             let uvrg: Vec2 = uvr_rotate(
                 (hash(Vec2::splat(uv_apo.z + 2.0)) * d * 180.0)
                     .cos()
-                    .gl_sign()
+                    .sign_gl()
                     * d
                     * self.time
                     * (1.0 / uv_apo.z * 20.0),

@@ -201,8 +201,8 @@ impl<C0> State<C0> {
             .floor()
             * 0.1;
         let mut mask: f32 = saturate((ray_dir.y * 8.0 - skyline - 2.5 + height) * 24.0);
-        let vert: f32 = (radial * 32.0).sin().gl_sign() * 0.5 + 0.5;
-        let hor: f32 = (ray_dir.y * 256.0).sin().gl_sign() * 0.5 + 0.5;
+        let vert: f32 = (radial * 32.0).sin().sign_gl() * 0.5 + 0.5;
+        let hor: f32 = (ray_dir.y * 256.0).sin().sign_gl() * 0.5 + 0.5;
         mask = saturate(mask + (1.0 - hor * vert) * 0.05);
         final_color = mix(final_color * vec3(0.1, 0.07, 0.05), final_color, mask);
 
@@ -366,7 +366,7 @@ fn city_block(p: Vec3, pint: Vec2) -> Vec2 {
             height + height2,
             (rand2.y - 0.5) * base_rad,
         );
-    let big: f32 = box_pos.x.gl_sign();
+    let big: f32 = box_pos.x.sign_gl();
     box_pos.x = box_pos.x.abs() - 0.02 - base_rad * 0.3 * rand.w;
     d = d.min(sd_box(
         box_pos,
@@ -425,8 +425,8 @@ impl<C0> State<C0> {
 
         rep.z += p2.x.floor(); // shift so less repitition between parallel blocks
         rep.x = repeat(p2.x - 0.5, 1.0); // repeat every block
-        rep.z = rep.z * rep.x.gl_sign(); // mirror but keep cars facing the right way
-        rep.x = (rep.x * rep.x.gl_sign()) - 0.09;
+        rep.z = rep.z * rep.x.sign_gl(); // mirror but keep cars facing the right way
+        rep.x = (rep.x * rep.x.sign_gl()) - 0.09;
         rep.z -= car_time * cross_street; // make cars move
         let unique_id: f32 = (rep.z / repeat_dist).floor(); // each car gets a unique ID that we can use for colors
         rep.z = repeat(rep.z, repeat_dist); // repeat the line of cars every quarter block
@@ -955,7 +955,7 @@ impl<C0: SampleCube> State<C0> {
             final_color *= 0.9;
             // fog that fades to reddish plus the sun color so that fog is brightest towards sun
             let mut rv2: Vec3 = ray_vec;
-            rv2.y *= saturate(rv2.y.gl_sign());
+            rv2.y *= saturate(rv2.y.sign_gl());
             let mut fog_color: Vec3 = self.get_env_map(rv2, self.sun_dir);
             fog_color = Vec3::splat(9.0).min(fog_color);
             final_color = mix(fog_color, final_color, (-t * 0.02).exp());

@@ -180,7 +180,7 @@ impl State {
         let mut d: f32;
 
         pd.x = pd.x.abs();
-        pd.z *= -p.x.gl_sign();
+        pd.z *= -p.x.sign_gl();
 
         let ch: f32 = hash(((pd.z + 18.0 * self.time()) / 40.0).floor());
         let lh: f32 = hash((pd.z / 13.0).floor());
@@ -408,7 +408,7 @@ impl State {
 
         let mut pd: Vec3 = pos;
         pd.x = pd.x.abs();
-        pd.z *= -pos.x.gl_sign();
+        pd.z *= -pos.x.sign_gl();
 
         let ch: f32 = hash(((pd.z + 18. * self.time()) / 40.0).floor());
         let mut pdc: Vec3 = vec3(

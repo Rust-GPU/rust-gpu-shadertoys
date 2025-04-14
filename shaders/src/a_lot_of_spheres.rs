@@ -150,7 +150,7 @@ impl Inputs {
         // trace grid
         let mut pos: Vec3 = (ro / GRIDSIZE).floor() * GRIDSIZE;
         let ri: Vec3 = 1.0 / rd;
-        let rs: Vec3 = rd.gl_sign() * GRIDSIZE;
+        let rs: Vec3 = rd.sign_gl() * GRIDSIZE;
         let mut dis: Vec3 = (pos - ro + 0.5 * Vec3::splat(GRIDSIZE) + rs * 0.5) * ri;
         let mut mm: Vec3;
 

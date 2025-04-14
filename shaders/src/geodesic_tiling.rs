@@ -72,7 +72,7 @@ fn p_reflect(p: &mut Vec3, plane_normal: Vec3, offset: f32) -> f32 {
     if t < 0.0 {
         *p = *p - (2. * t) * plane_normal;
     }
-    t.gl_sign()
+    t.sign_gl()
 }
 
 fn smax(a: f32, b: f32, r: f32) -> f32 {

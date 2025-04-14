@@ -75,7 +75,7 @@ impl Clamp for f32 {
 pub trait FloatExt {
     fn fract_gl(self) -> Self;
     fn rem_euclid(self, rhs: Self) -> Self;
-    fn gl_sign(self) -> Self;
+    fn sign_gl(self) -> Self;
     fn step(self, x: Self) -> Self;
 }
 
@@ -93,7 +93,7 @@ impl FloatExt for f32 {
         }
     }
 
-    fn gl_sign(self) -> f32 {
+    fn sign_gl(self) -> f32 {
         if self < 0.0 {
             -1.0
         } else if self == 0.0 {
@@ -119,7 +119,7 @@ pub trait VecExt {
     fn sqrt(self) -> Self;
     fn ln(self) -> Self;
     fn step(self, other: Self) -> Self;
-    fn gl_sign(self) -> Self;
+    fn sign_gl(self) -> Self;
 }
 
 impl VecExt for Vec2 {
@@ -147,8 +147,8 @@ impl VecExt for Vec2 {
         vec2(self.x.step(other.x), self.y.step(other.y))
     }
 
-    fn gl_sign(self) -> Vec2 {
-        vec2(self.x.gl_sign(), self.y.gl_sign())
+    fn sign_gl(self) -> Vec2 {
+        vec2(self.x.sign_gl(), self.y.sign_gl())
     }
 }
 
@@ -181,8 +181,8 @@ impl VecExt for Vec3 {
         )
     }
 
-    fn gl_sign(self) -> Vec3 {
-        vec3(self.x.gl_sign(), self.y.gl_sign(), self.z.gl_sign())
+    fn sign_gl(self) -> Vec3 {
+        vec3(self.x.sign_gl(), self.y.sign_gl(), self.z.sign_gl())
     }
 }
 
@@ -221,12 +221,12 @@ impl VecExt for Vec4 {
         )
     }
 
-    fn gl_sign(self) -> Vec4 {
+    fn sign_gl(self) -> Vec4 {
         vec4(
-            self.x.gl_sign(),
-            self.y.gl_sign(),
-            self.z.gl_sign(),
-            self.w.gl_sign(),
+            self.x.sign_gl(),
+            self.y.sign_gl(),
+            self.z.sign_gl(),
+            self.w.sign_gl(),
         )
     }
 }
