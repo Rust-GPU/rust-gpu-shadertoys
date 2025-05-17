@@ -12,6 +12,7 @@ pub mod apollonian;
 pub mod atmosphere_system_test;
 pub mod bubble_buckey_balls;
 pub mod clouds;
+pub mod constants;
 pub mod filtering_procedurals;
 pub mod flappy_bird;
 pub mod galaxy_of_universes;
@@ -75,7 +76,7 @@ pub struct ShaderResult {
 }
 
 pub struct ShaderDefinition {
-  name: &'static str,
+  pub name: &'static str,
 }
 
 macro_rules! match_index {
@@ -106,7 +107,8 @@ macro_rules! render_shader_macro {
 }
 
 render_shader_macro!(
-  28,
+  29,
+  loading_repeating_circles,
   two_tweets,
   heart,
   clouds,

@@ -385,6 +385,7 @@ fn op_u(d1: Vec2, d2: Vec2) -> Vec2 {
 //------------------------------------------------------------------
 
 impl Inputs {
+  #[allow(unused)]
   fn zero(&self) -> i32 {
     let frame = self.frame;
     if frame >= 0 {

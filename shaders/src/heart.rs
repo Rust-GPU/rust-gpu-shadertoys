@@ -6,6 +6,8 @@
 //! // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 //! ```
 
+use core::f32::consts::PI;
+
 use shared::*;
 use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec3Swizzles, Vec4};
 
@@ -36,7 +38,7 @@ pub struct Inputs {
 impl Inputs {
   pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
     let mut p: Vec2 =
-      (2.0 * frag_coord - self.resolution.xy()) / (self.resolution.y.min(self.resolution.x));
+      (2.0 * frag_coord - self.resolution.xy()) / (self.resolution.xy().min_element());
 
     // background color
     let bcol: Vec3 = vec3(1.0, 0.8, 0.7 - 0.07 * p.y) * (1.0 - 0.25 * p.length());
@@ -58,7 +60,7 @@ impl Inputs {
       d = 0.5;
     } else {
       p.y -= 0.25;
-      let a: f32 = p.x.atan2(p.y) / 3.141593;
+      let a: f32 = p.x.atan2(p.y) / PI;
       r = p.length();
       let h: f32 = a.abs();
       d = (13.0 * h - 22.0 * h * h + 10.0 * h * h * h) / (6.0 - 5.0 * h);

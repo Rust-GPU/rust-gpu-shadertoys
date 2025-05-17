@@ -8,7 +8,9 @@
 //! // Tested on Nvidia GTX 780 Windows 7
 //! ```
 
-use crate::{ConstantColor, RgbCube, SampleCube};
+use core::f32::consts::{FRAC_1_PI, PI};
+
+use crate::{constants::TWO_PI, ConstantColor, RgbCube, SampleCube};
 use shared::*;
 use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 
@@ -76,10 +78,6 @@ impl<C0, C1> State<C0, C1> {
 // **************************************************************************
 // CONSTANTS
 
-const PI: f32 = 3.14159;
-const TWO_PI: f32 = 6.28318;
-const _PI_OVER_TWO: f32 = 1.570796;
-const ONE_OVER_PI: f32 = 0.318310;
 const GR: f32 = 1.61803398;
 
 const SMALL_FLOAT: f32 = 0.0001;
@@ -471,10 +469,10 @@ impl<C0: SampleCube, C1: SampleCube> State<C0, C1> {
     if ndl > 0. {
       let frk: f32 = 0.5 + 2.0 * costd * costd * surf.roughness;
       let diff: Vec3 = surf.basecolor
-        * ONE_OVER_PI
+        * FRAC_1_PI
         * (1. + (frk - 1.) * pow5(1. - costl))
         * (1. + (frk - 1.) * pow5(1. - costv));
-      //let diff: Vec3 = surf.basecolor * ONE_OVER_PI; // lambert
+      //let diff: Vec3 = surf.basecolor * FRAC_1_PI; // lambert
 
       // D(h) factor
       // using the GGX approximation where the gamma factor is 2.

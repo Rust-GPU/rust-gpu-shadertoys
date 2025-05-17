@@ -17,6 +17,8 @@
 //! // Twitter: @The_ArtOfCode
 //! ```
 
+use core::f32::consts::PI;
+
 use shared::*;
 use spirv_std::glam::{vec2, vec3, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 
@@ -25,7 +27,7 @@ use spirv_std::glam::{vec2, vec3, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swiz
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{ShaderDefinition, ShaderInput, ShaderResult};
+use crate::{constants::TWO_PI, ShaderDefinition, ShaderInput, ShaderResult};
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
   name: "Luminescence",
@@ -98,10 +100,6 @@ fn sin(x: f32) -> f32 {
 const _LF: Vec3 = vec3(1.0, 0.0, 0.0);
 const UP: Vec3 = vec3(0.0, 1.0, 0.0);
 const _FW: Vec3 = vec3(0.0, 0.0, 1.0);
-
-const _HALF_PI: f32 = 1.570796326794896619;
-const PI: f32 = 3.141592653589793238;
-const TWO_PI: f32 = 6.283185307179586;
 
 const ACCENT_COLOR1: Vec3 = vec3(1.0, 0.1, 0.5);
 const SECOND_COLOR1: Vec3 = vec3(0.1, 0.5, 1.0);

@@ -44,8 +44,7 @@ pub struct Inputs {
 }
 
 const NUM_STEPS: usize = 8;
-const PI: f32 = 3.141592;
-const _EPSILON: f32 = 1e-3;
+const PI: f32 = core::f32::consts::PI;
 impl Inputs {
   fn epsilon_nrm(&self) -> f32 {
     0.1 / self.resolution.x

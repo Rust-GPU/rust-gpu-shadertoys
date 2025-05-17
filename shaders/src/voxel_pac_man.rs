@@ -14,6 +14,8 @@
 //! */
 //! ```
 
+use core::f32::consts::PI;
+
 use shared::*;
 use spirv_std::glam::{vec2, vec3, Mat3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4};
 
@@ -22,7 +24,7 @@ use spirv_std::glam::{vec2, vec3, Mat3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, 
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{ShaderDefinition, ShaderInput, ShaderResult};
+use crate::{constants::SQRT3, ShaderDefinition, ShaderInput, ShaderResult};
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
   name: "Voxel PacMan",
@@ -90,10 +92,6 @@ const FADE_POWER: f32 = 1.0;
 const BACKGROUND: f32 = 0.7;
 const GLOW: f32 = 0.4;
 const GAMMA: f32 = 0.8;
-
-// Math constants
-const PI: f32 = 3.14159265359;
-const SQRT3: f32 = 1.73205080757;
 
 // PRNG (from https://www.shadertoy.com/view/4djSRW)
 fn rand(mut seed: Vec3) -> f32 {

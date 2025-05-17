@@ -5,6 +5,8 @@
 //! // On/Off Spikes, fragment shader by movAX13h, oct 2014
 //! ```
 
+use core::f32::consts::FRAC_PI_2;
+
 use shared::*;
 use spirv_std::glam::{
   vec2, vec3, Mat2, Mat3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
@@ -15,7 +17,7 @@ use spirv_std::glam::{
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{ShaderDefinition, ShaderInput, ShaderResult};
+use crate::{constants::TWO_PI, ShaderDefinition, ShaderInput, ShaderResult};
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
   name: "On/Off Spikes",
@@ -86,13 +88,8 @@ const TENTACLE_COL: Vec3 = vec3(0.06, 0.06, 0.06);
 
 const GAMMA: f32 = 2.2;
 
-//---
-const PI2: f32 = 6.283185307179586476925286766559;
-const PIH: f32 = 1.5707963267949;
-
 // Using the nebula function of the "Star map shader" by morgan3d
 // as environment map and light sphere texture (https://www.shadertoy.com/view/4sBXzG)
-const _PI: f32 = 3.1415927;
 const NUM_OCTAVES: i32 = 4;
 fn hash(n: f32) -> f32 {
   (n.sin() * 1e4).fract_gl()
@@ -232,7 +229,7 @@ impl State {
     let mut a: f32 = q.z.atan2(q.x);
     a += 0.4 * (r - self.inputs.time).sin();
 
-    q = vec3(a * NUM_TENTACLES as f32 / PI2, q.y, q.xz().length()); // circular domain
+    q = vec3(a * NUM_TENTACLES as f32 / TWO_PI, q.y, q.xz().length()); // circular domain
     q = vec3(q.x.rem_euclid(1.0) - 0.5 * 1.0, q.y, q.z); // repetition
 
     d3 = sd_capped_cylinder(
@@ -353,9 +350,9 @@ impl State {
       let mrel: Vec2 = self.inputs.mouse.xy() / self.inputs.resolution.xy() - Vec2::splat(0.5);
       let mdis: f32 = 8.0 + 6.0 * mrel.y;
       cp = vec3(
-        mdis * (-mrel.x * PIH).cos(),
+        mdis * (-mrel.x * FRAC_PI_2).cos(),
         4.0 * mrel.y,
-        mdis * (-mrel.x * PIH).sin(),
+        mdis * (-mrel.x * FRAC_PI_2).sin(),
       );
     }
 

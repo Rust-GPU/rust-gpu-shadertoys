@@ -329,6 +329,10 @@ impl ApplicationHandler for ShaderToyApp {
         } => {
           self.shader_to_show =
             (self.shader_to_show + 1) % shadertoys_shaders::SHADER_DEFINITIONS.len() as u32;
+          println!(
+            "Shader to show: {}",
+            shadertoys_shaders::SHADER_DEFINITIONS[self.shader_to_show as usize].name
+          );
         },
         KeyEvent {
           state: ElementState::Pressed,
@@ -338,6 +342,10 @@ impl ApplicationHandler for ShaderToyApp {
           self.shader_to_show =
             (self.shader_to_show + shadertoys_shaders::SHADER_DEFINITIONS.len() as u32 - 1)
               % shadertoys_shaders::SHADER_DEFINITIONS.len() as u32;
+          println!(
+            "Shader to show: {}",
+            shadertoys_shaders::SHADER_DEFINITIONS[self.shader_to_show as usize].name
+          );
         },
         _ => {},
       },

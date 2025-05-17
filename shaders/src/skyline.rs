@@ -10,6 +10,8 @@
 //! -Otavio Good
 //! */
 //! ```
+use core::f32::consts::PI;
+
 use shared::*;
 use spirv_std::{
   arch::Derivative,
@@ -163,8 +165,6 @@ fn noise(uv: Vec3) -> f32 {
     fr.z,
   )
 }
-
-const PI: f32 = 3.14159265;
 
 fn saturate_vec3(a: Vec3) -> Vec3 {
   a.clamp(Vec3::ZERO, Vec3::ONE)
@@ -549,7 +549,7 @@ impl<C0: SampleCube> State<C0> {
 
       // debugging camera
       let mx: f32 = -self.inputs.mouse.x / self.inputs.resolution.x * PI * 2.0; // + localTime * 0.05;
-      let my: f32 = self.inputs.mouse.y / self.inputs.resolution.y * 3.14 * 0.5 + PI / 2.0; // + sin(localTime * 0.3)*0.8+0.1;//*PI/2.01;
+      let my: f32 = self.inputs.mouse.y / self.inputs.resolution.y * PI * 0.5 + PI / 2.0; // + sin(localTime * 0.3)*0.8+0.1;//*PI/2.01;
       cam_pos = vec3(my.cos() * mx.cos(), my.sin(), my.cos() * mx.sin()) * 7.35;
     //7.35
     } else {

@@ -6,6 +6,8 @@
 //! // Created by S. Guillitte 2015
 //! ```
 
+use core::f32::consts::PI;
+
 use crate::{RgbCube, SampleCube};
 use shared::*;
 use spirv_std::glam::{vec2, vec3, vec4, Mat2, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
@@ -115,7 +117,7 @@ impl<C0: SampleCube> Inputs<C0> {
     p.x *= self.resolution.x / self.resolution.y;
     let mut m: Vec2 = Vec2::ZERO;
     if self.mouse.z > 0.0 {
-      m = self.mouse.xy() / self.resolution.xy() * 3.14;
+      m = self.mouse.xy() / self.resolution.xy() * PI;
     }
     m = m - Vec2::splat(0.5);
 

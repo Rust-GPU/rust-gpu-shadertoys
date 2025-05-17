@@ -6,6 +6,8 @@
 //! // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 //! ```
 
+use core::f32::consts::PI;
+
 use shared::*;
 use spirv_std::glam::{
   vec2, vec3, Mat2, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
@@ -16,7 +18,7 @@ use spirv_std::glam::{
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{ShaderDefinition, ShaderInput, ShaderResult};
+use crate::{constants::TWO_PI, ShaderDefinition, ShaderInput, ShaderResult};
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
   name: "Morphing Teapot",
@@ -161,7 +163,7 @@ impl State {
 
     // Distance to other shapes ---------------------------------------------
     let mut d_shape: f32;
-    let id_morph: i32 = ((0.5 + (self.inputs.time) / (2.0 * 3.141592658)).floor() % 3.0) as i32;
+    let id_morph: i32 = ((0.5 + (self.inputs.time) / (TWO_PI)).floor() % 3.0) as i32;
 
     if id_morph == 1 {
       p = (self.mat2_rot.transpose() * p.xz()).extend(p.y).xzy();
@@ -213,7 +215,7 @@ impl State {
   }
 
   pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
-    let aa: f32 = 3.14159 / 4.0;
+    let aa: f32 = PI / 4.0;
     self.mat2_rot = Mat2::from_cols_array(&[aa.cos(), aa.sin(), -aa.sin(), aa.cos()]);
 
     // Morphing step

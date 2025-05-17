@@ -8,7 +8,7 @@ use spirv_std::glam::{mat2, vec2, vec3, Mat2, Mat3, Vec2, Vec3, Vec3Swizzles, Ve
 #[cfg(target_arch = "spirv")]
 use spirv_std::num_traits::Float;
 
-use crate::{ShaderDefinition, ShaderInput, ShaderResult};
+use crate::{constants::SQRT3, ShaderDefinition, ShaderInput, ShaderResult};
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
   name: "Geodesic Tiling",
@@ -147,14 +147,10 @@ impl State {
 // Adapted from mattz https://www.shadertoy.com/view/4d2GzV
 // --------------------------------------------------------
 
-const SQRT3: f32 = 1.7320508075688772;
 const I3: f32 = 0.5773502691896258;
 
 const CART2HEX: Mat2 = mat2(vec2(1.0, 0.0), vec2(I3, 2.0 * I3));
 const HEX2CART: Mat2 = mat2(vec2(1.0, 0.0), vec2(-0.5, 0.5 * SQRT3));
-
-const _PHI: f32 = 1.618033988749895;
-const _TAU: f32 = 6.283185307179586;
 
 struct TriPoints {
   a: Vec2,
