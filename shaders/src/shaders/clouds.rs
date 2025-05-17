@@ -1,9 +1,6 @@
 //! Ported to Rust from <https://www.shadertoy.com/view/4tdSWr>
 
-use shared::*;
-use spirv_std::glam::{mat2, vec2, vec3, Mat2, Vec2, Vec3, Vec3Swizzles, Vec4};
-
-use crate::{ShaderDefinition, ShaderInput, ShaderResult};
+use crate::shader_prelude::*;
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition { name: "Clouds" };
 

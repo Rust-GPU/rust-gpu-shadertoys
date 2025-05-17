@@ -1,143 +1,8 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 
-use shared::*;
-use spirv_std::{
-  glam::{vec2, vec3, vec4, Vec2, Vec3, Vec4},
-  spirv,
-};
-
-pub mod a_lot_of_spheres;
-pub mod a_question_of_time;
-pub mod apollonian;
-pub mod atmosphere_system_test;
-pub mod bubble_buckey_balls;
-pub mod clouds;
-pub mod constants;
-pub mod filtering_procedurals;
-pub mod flappy_bird;
-pub mod galaxy_of_universes;
-pub mod geodesic_tiling;
-pub mod heart;
-pub mod loading_repeating_circles;
-pub mod luminescence;
-pub mod mandelbrot_smooth;
-pub mod miracle_snowflakes;
-pub mod morphing;
-pub mod moving_square;
-pub mod on_off_spikes;
-pub mod phantom_star;
-pub mod playing_marble;
-pub mod protean_clouds;
-pub mod raymarching_primitives;
-pub mod seascape;
-pub mod skyline;
-pub mod soft_shadow_variation;
-pub mod tileable_water_caustic;
-pub mod tokyo;
-pub mod two_tweets;
-pub mod voxel_pac_man;
-
-pub trait SampleCube: Copy {
-  fn sample_cube(self, p: Vec3) -> Vec4;
-}
-
-#[derive(Copy, Clone)]
-struct ConstantColor {
-  color: Vec4,
-}
-
-impl SampleCube for ConstantColor {
-  fn sample_cube(self, _: Vec3) -> Vec4 {
-    self.color
-  }
-}
-
-#[derive(Copy, Clone)]
-struct RgbCube {
-  alpha: f32,
-  intensity: f32,
-}
-
-impl SampleCube for RgbCube {
-  fn sample_cube(self, p: Vec3) -> Vec4 {
-    (p.abs() * self.intensity).extend(self.alpha)
-  }
-}
-
-pub struct ShaderInput {
-  resolution: Vec3,
-  time: f32,
-  frag_coord: Vec2,
-  mouse: Vec4,
-}
-
-pub struct ShaderResult {
-  color: Vec4,
-}
-
-pub struct ShaderDefinition {
-  pub name: &'static str,
-}
-
-macro_rules! match_index {
-    ($e:expr; $($result:expr),* $(,)?) => ({
-        let mut i = 0..;
-        match $e { e => {
-            $(if e == i.next().unwrap() { $result } else)*
-            { unreachable!() }
-        }}
-    })
-}
-
-macro_rules! render_shader_macro {
-    ($num_shaders:expr, $($shader_name:ident),* $(,)?) => {
-        #[inline(always)]
-        pub fn render_shader(shader_index: u32, shader_input: &ShaderInput, shader_output: &mut ShaderResult) {
-            match_index!(shader_index; $(
-                $shader_name::shader_fn(shader_input, shader_output),
-            )*)
-        }
-
-        pub const SHADER_DEFINITIONS: [ShaderDefinition; $num_shaders] = [
-            $(
-                $shader_name::SHADER_DEFINITION,
-            )*
-        ];
-    };
-}
-
-render_shader_macro!(
-  29,
-  loading_repeating_circles,
-  two_tweets,
-  heart,
-  clouds,
-  mandelbrot_smooth,
-  protean_clouds,
-  tileable_water_caustic,
-  apollonian,
-  phantom_star,
-  seascape,
-  playing_marble,
-  a_lot_of_spheres,
-  a_question_of_time,
-  galaxy_of_universes,
-  atmosphere_system_test,
-  soft_shadow_variation,
-  miracle_snowflakes,
-  morphing,
-  bubble_buckey_balls,
-  raymarching_primitives,
-  moving_square,
-  skyline,
-  filtering_procedurals,
-  geodesic_tiling,
-  flappy_bird,
-  tokyo,
-  on_off_spikes,
-  luminescence,
-  voxel_pac_man,
-);
+pub mod shader_prelude;
+use shader_prelude::*;
+pub mod shaders;
 
 #[inline(always)]
 pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
@@ -174,7 +39,7 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
     mouse,
   };
   let mut shader_output = &mut ShaderResult { color: Vec4::ZERO };
-  render_shader(constants.shader_to_show, &shader_input, &mut shader_output);
+  shaders::render_shader(constants.shader_to_show, &shader_input, &mut shader_output);
   let color = shader_output.color;
   Vec3::powf(color.truncate(), 2.2).extend(color.w)
 }

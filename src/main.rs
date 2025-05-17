@@ -1,5 +1,6 @@
 use futures::executor::block_on;
 use ouroboros::self_referencing;
+use shadertoys_shaders::shaders::SHADER_DEFINITIONS;
 use std::{error::Error, time::Instant};
 use wgpu::{self, include_spirv, include_spirv_raw, InstanceDescriptor};
 use winit::{
@@ -327,11 +328,10 @@ impl ApplicationHandler for ShaderToyApp {
           physical_key: PhysicalKey::Code(KeyCode::KeyE),
           ..
         } => {
-          self.shader_to_show =
-            (self.shader_to_show + 1) % shadertoys_shaders::SHADER_DEFINITIONS.len() as u32;
+          self.shader_to_show = (self.shader_to_show + 1) % SHADER_DEFINITIONS.len() as u32;
           println!(
             "Shader to show: {}",
-            shadertoys_shaders::SHADER_DEFINITIONS[self.shader_to_show as usize].name
+            SHADER_DEFINITIONS[self.shader_to_show as usize].name
           );
         },
         KeyEvent {
@@ -339,12 +339,11 @@ impl ApplicationHandler for ShaderToyApp {
           physical_key: PhysicalKey::Code(KeyCode::KeyQ),
           ..
         } => {
-          self.shader_to_show =
-            (self.shader_to_show + shadertoys_shaders::SHADER_DEFINITIONS.len() as u32 - 1)
-              % shadertoys_shaders::SHADER_DEFINITIONS.len() as u32;
+          self.shader_to_show = (self.shader_to_show + SHADER_DEFINITIONS.len() as u32 - 1)
+            % SHADER_DEFINITIONS.len() as u32;
           println!(
             "Shader to show: {}",
-            shadertoys_shaders::SHADER_DEFINITIONS[self.shader_to_show as usize].name
+            SHADER_DEFINITIONS[self.shader_to_show as usize].name
           );
         },
         _ => {},

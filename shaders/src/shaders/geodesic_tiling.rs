@@ -1,14 +1,6 @@
 //! Ported to Rust from <https://www.shadertoy.com/view/llVXRd>
 
-use shared::*;
-use spirv_std::glam::{mat2, vec2, vec3, Mat2, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
-
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-
-use crate::{constants::SQRT3, ShaderDefinition, ShaderInput, ShaderResult};
+use crate::shader_prelude::*;
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
   name: "Geodesic Tiling",
