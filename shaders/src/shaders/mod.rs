@@ -57,6 +57,9 @@ macro_rules! render_shader_macro {
     };
 }
 
+render_shader_macro!(1, loading_repeating_circles,);
+
+/*
 render_shader_macro!(
   29,
   loading_repeating_circles,
@@ -89,3 +92,4 @@ render_shader_macro!(
   luminescence,
   voxel_pac_man,
 );
+*/
