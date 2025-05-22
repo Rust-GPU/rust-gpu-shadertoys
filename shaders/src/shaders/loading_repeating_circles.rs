@@ -455,6 +455,20 @@ fn remap_time(parent_t: f32, start_time: f32, end_time: f32) -> f32 {
   return f32::clamp((parent_t - start_time) / duration, 0.0, 1.0);
 }
 
+/// Alpha compositing using "over" operator
+fn composite_layers<const N: usize>(overlay_colors: &[Vec4; N]) -> Vec4 {
+  let mut result = Vec4::ZERO;
+  for i in (0..overlay_colors.len()).rev() {
+    let color = overlay_colors[i];
+    let alpha = color.w;
+    if alpha > 0.0 {
+      result = result + (color * alpha * (1.0 - result.w));
+      result.w += alpha * (1.0 - result.w);
+    }
+  }
+  return result;
+}
+
 impl Inputs {
   pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
     // Get screen dimensions as Vec2.
@@ -470,8 +484,9 @@ impl Inputs {
 
     let aspect = screen_xy / shorter_dim;
 
-    let mut combined_mask: f32 = 0.0;
-    let mut combined_debug_mask: f32 = 0.0;
+    let mut black_alpha: f32 = 0.0;
+    let mut debug_red_alpha: f32 = 0.0;
+    let mut debug_blue_alpha: f32 = 0.0;
 
     let center = vec2(0.0, 0.0);
     let bottom_middle = vec2(0.0, -aspect.y);
@@ -494,36 +509,9 @@ impl Inputs {
     let t_rotation = exp_time(t_master, 0.6);
     let t_trail_delayed = remap_time(t_master, 0.4, 1.0);
     let t_trail = exp_time(t_trail_delayed, 0.4);
-    let t_assist_circle_delayed = remap_time(t_master, 0.5, 1.0);
+    let t_assist_circle_delayed = remap_time(t_master, 0.5, 0.9);
     let t_assist_circle = exp_time(t_assist_circle_delayed, 0.4);
     //let t_exp = 1.0 - (-5.0 * t).exp();
-
-    let m_sausage_filled_test = sdf_sausage_filled(
-      uv,
-      center,
-      45.0 * PI / 180.0,
-      270.0 * PI / 180.0,
-      target_radius,
-      target_stroke,
-      90.0 * PI / 180.0,
-      0.5,
-    );
-    //combined_mask = combined_mask.max((1.0 - smoothstep(0.0, aa_width, m_sausage_filled_test.x)) * f32::clamp(m_sausage_filled_test.y, 0.1, 1.0));
-    let m_sausage_outline_test = sdf_sausage_outline(
-      uv,
-      center,
-      45.0 * PI / 180.0,
-      270.0 * PI / 180.0,
-      target_radius,
-      target_stroke / 2.0,
-      target_stroke,
-      90.0 * PI / 180.0,
-      0.5,
-    );
-    /*combined_mask = combined_mask.max(
-      (1.0 - smoothstep(0.0, aa_width, m_sausage_outline_test.x))
-        * f32::clamp(m_sausage_outline_test.y, 0.1, 1.0),
-    );*/
 
     // rotating circles
     let num_circles = 12;
@@ -556,18 +544,25 @@ impl Inputs {
       num_circles,
       3,
     );
-    let m = sdf_circle_outline(
+
+    let m_start_circle = sdf_circle_outline(
       uv,
       target_rotating_circle.position,
       target_radius,
       target_stroke,
     );
-    // Combine masks using max to create a single mask.
-    //combined_mask = combined_mask.max(m);
+    debug_red_alpha = debug_red_alpha.max(m_start_circle);
+    let m_middle_circle_path = sdf_circle_outline(
+      uv,
+      middle_circle_start_position,
+      middle_circle_start_radius,
+      target_stroke / 2.0,
+    );
+    debug_red_alpha = debug_red_alpha.max(m_middle_circle_path);
 
     for i in 0..num_circles {
       // Compute the position of the circle based on the angle and radius.
-      let rotating_circle_result = rotating_discrete_circle(
+      let outer_discrete_circle = rotating_discrete_circle(
         middle_circle_position,
         middle_circle_radius,
         -t_rotation * 5.0,
@@ -576,7 +571,7 @@ impl Inputs {
       );
       let m = sdf_circle_outline(
         uv,
-        rotating_circle_result.position - vec2(0.1, 0.0),
+        outer_discrete_circle.position - vec2(0.1, 0.0),
         outer_circle_outer_radius,
         target_stroke,
       );
@@ -588,16 +583,16 @@ impl Inputs {
       let m = sdf_sausage_outline(
         uv,
         middle_circle_position,
-        rotating_circle_result.angle - trail_angular_extent / 2.0,
-        rotating_circle_result.angle + trail_angular_extent / 2.0,
+        outer_discrete_circle.angle - trail_angular_extent / 2.0,
+        outer_discrete_circle.angle + trail_angular_extent / 2.0,
         middle_circle_radius,
         outer_circle_inner_radius,
         outer_circle_outer_radius,
-        rotating_circle_result.angle,
+        outer_discrete_circle.angle,
         outer_circle_fade,
       );
-      combined_mask = combined_mask
-        .max((1.0 - smoothstep(0.0, aa_width, m.x)) * (m.y + t_assist_circle).min(1.0));
+      black_alpha =
+        black_alpha.max((1.0 - smoothstep(0.0, aa_width, m.x)) * (m.y + t_assist_circle).min(1.0));
       // * (m.y + 6.0 / 256.0));
 
       let m = sdf_circle_outline(
@@ -606,17 +601,17 @@ impl Inputs {
         middle_circle_radius,
         outer_circle_outer_radius * 2.0,
       );
-      combined_mask = combined_mask.max((smoothstep(0.0, aa_width, m)) * t_assist_circle);
+      black_alpha = black_alpha.max((smoothstep(0.0, aa_width, m)) * t_assist_circle);
     }
 
-    // Mix white and black based on mask.
-    // With current mask: outside band (mask=1) is black, inside band (mask=0) is white.
-    // This produces a white outline on a black background.
-    let color_rgb = mix(Vec3::ONE, Vec3::ZERO, combined_mask);
+    let color_background = Vec4::ONE;
+    let color_black = Vec4::new(0.0, 0.0, 0.0, black_alpha);
+    let color_red = Vec4::new(1.0, 0.0, 0.0, debug_red_alpha * 0.5);
+    let color_blue = Vec4::new(0.0, 0.0, 1.0, debug_blue_alpha * 0.5);
 
-    let debug_red = mix(Vec3::new(1.0, 0.0, 0.0), Vec3::ZERO, combined_debug_mask);
+    let color_rgb = composite_layers(&[color_background, color_black, color_red, color_blue]);
 
     // Output final pixel color with alpha = 1.0.
-    *frag_color = color_rgb.extend(1.0);
+    *frag_color = color_rgb;
   }
 }
