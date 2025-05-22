@@ -455,6 +455,31 @@ fn remap_time(parent_t: f32, start_time: f32, end_time: f32) -> f32 {
   return f32::clamp((parent_t - start_time) / duration, 0.0, 1.0);
 }
 
+/// Signed distance function for a box centered at the origin.
+/// `p` is the point to evaluate.
+/// `b` is the half-dimensions of the box.
+fn sd_box(p: Vec2, b: Vec2) -> f32 {
+  let d = p.abs() - b;
+  let outside = d.max(Vec2::ZERO);
+  let inside = d.x.max(d.y).min(0.0);
+  outside.length() + inside
+}
+
+/// Draws the outline of a rectangle using the signed distance function.
+/// `uv`: coordinates relative to the center of the rectangle.
+/// `aspect`: half-dimensions of the rectangle (half-width, half-height).
+/// `stroke`: thickness of the rectangle outline.
+fn draw_viewport_rect_outline(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32) -> f32 {
+  let distance = sd_box(uv, aspect);
+  let half_stroke = stroke * 0.5;
+
+  smoothstep(
+    half_stroke + aa_width,
+    half_stroke - aa_width,
+    distance.abs(),
+  )
+}
+
 /// Alpha compositing using "over" operator
 fn composite_layers<const N: usize>(overlay_colors: &[Vec4; N]) -> Vec4 {
   let mut result = Vec4::ZERO;
@@ -476,10 +501,17 @@ impl Inputs {
     // Determine the shorter dimension of the screen.
     let shorter_dim = screen_xy.min_element();
 
+    let debug_zoom = 10.0;
+    let debug_translate = vec2(0.0, 9.0);
+
+    let debug_zoom = 5.0;
+    let debug_translate = vec2(0.0, 4.5);
+
     // Compute normalized pixel coordinates.
     // This maps the center of the screen to (0,0) and the shortest side to [-1,1].
     // Aspect ratio is preserved.
-    let uv = (frag_coord - screen_xy * 0.5) / shorter_dim * 2.0;
+    let uv = (frag_coord - screen_xy * 0.5) / shorter_dim * 2.0 * debug_zoom - debug_translate;
+    let uv = (frag_coord - screen_xy * 0.5) / shorter_dim * 2.0 * debug_zoom - debug_translate;
     let aa_width = 2.0 / screen_xy.max_element();
 
     let aspect = screen_xy / shorter_dim;
@@ -487,6 +519,9 @@ impl Inputs {
     let mut black_alpha: f32 = 0.0;
     let mut debug_red_alpha: f32 = 0.0;
     let mut debug_blue_alpha: f32 = 0.0;
+
+    let m_viewport_rect = draw_viewport_rect_outline(uv, aspect, 0.1, aa_width);
+    debug_red_alpha = debug_red_alpha.max(m_viewport_rect);
 
     let center = vec2(0.0, 0.0);
     let bottom_middle = vec2(0.0, -aspect.y);
@@ -497,9 +532,8 @@ impl Inputs {
     let start_radius = (bottom_middle - center).length();
     let target_radius = 0.2;
     let target_stroke = 0.05;
-    let m_target = sdf_circle_outline(uv, center, target_radius, target_stroke);
-    //combined_mask = combined_mask.max(m_target);
-    let period = 4.0; // seconds
+    let period = 8.0; //4.0; // seconds
+    let period = 8.0; //4.0; // seconds
     let t_master = (self.time / period).fract();
     //let t_master = 0.95;
     //let t_master = 0.8;
