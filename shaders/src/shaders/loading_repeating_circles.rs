@@ -419,7 +419,7 @@ struct RotatingCircleResult {
 fn rotating_discrete_circle(
   center: Vec2,
   radius: f32,
-  t: f32,
+  start_angle: f32,
   num_circles: i32,
   cirle_index: i32,
 ) -> RotatingCircleResult {
@@ -428,7 +428,7 @@ fn rotating_discrete_circle(
   // base angle for this circle index
   let base_angle = angle_step * cirle_index as f32;
   // total rotation angle
-  let angle = base_angle + t * TWO_PI;
+  let angle = base_angle + start_angle;
   // compute offset from center
   let offset = vec2(angle.cos(), angle.sin()) * radius;
   // return world‐space position
@@ -529,7 +529,7 @@ impl Inputs {
     let middle_circle_start_radius = start_radius + H;
     let middle_circle_radius = mix(middle_circle_start_radius, target_radius, t_middle);
     let middle_circle_start_position = bottom_middle - Vec2::new(0.0, H);
-    let middle_circle_position = mix(middle_circle_start_position, center, t_middle);
+    let mut middle_circle_position = mix(middle_circle_start_position, center, t_middle);
     let middle_circle_moved_distance =
       (middle_circle_start_position - middle_circle_position).length();
     let outer_circle_outer_radius = (middle_circle_start_radius + target_radius)
@@ -537,20 +537,11 @@ impl Inputs {
     let trail_angular_extent = mix(0.0, angle_between_circles, t_trail);
     let outer_circle_fade = mix(1.0, 0.4, t_trail);
 
-    let target_rotating_circle = rotating_discrete_circle(
-      bottom_middle - Vec2::new(0.0, H),
-      start_radius + H,
-      0.0,
-      num_circles,
-      3,
-    );
+    // y adjust to follow the middle circle
+    middle_circle_position.y -=
+      (middle_circle_position.y + middle_circle_radius) * (1.0 - t_master);
 
-    let m_start_circle = sdf_circle_outline(
-      uv,
-      target_rotating_circle.position,
-      target_radius,
-      target_stroke,
-    );
+    let m_start_circle = sdf_circle_outline(uv, Vec2::ZERO, target_radius, target_stroke);
     debug_red_alpha = debug_red_alpha.max(m_start_circle);
     let m_middle_circle_path = sdf_circle_outline(
       uv,
@@ -565,18 +556,10 @@ impl Inputs {
       let outer_discrete_circle = rotating_discrete_circle(
         middle_circle_position,
         middle_circle_radius,
-        -t_rotation * 5.0,
+        -t_rotation * TWO_PI * 5.0,
         num_circles,
         i,
       );
-      let m = sdf_circle_outline(
-        uv,
-        outer_discrete_circle.position - vec2(0.1, 0.0),
-        outer_circle_outer_radius,
-        target_stroke,
-      );
-      // Combine masks using max to create a single mask.
-      //combined_mask = combined_mask.max(m);
 
       let outer_circle_inner_radius = (outer_circle_outer_radius - target_stroke / 2.0).max(0.0);
       let outer_circle_outer_radius = outer_circle_outer_radius + target_stroke / 2.0;
@@ -606,6 +589,7 @@ impl Inputs {
 
     let color_background = Vec4::ONE;
     let color_black = Vec4::new(0.0, 0.0, 0.0, black_alpha);
+    //debug_red_alpha = 0.0;
     let color_red = Vec4::new(1.0, 0.0, 0.0, debug_red_alpha * 0.5);
     let color_blue = Vec4::new(0.0, 0.0, 1.0, debug_blue_alpha * 0.5);
 
