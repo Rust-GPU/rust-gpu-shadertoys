@@ -41,7 +41,7 @@ macro_rules! match_index {
 }
 
 macro_rules! render_shader_macro {
-    ($num_shaders:expr, $($shader_name:ident),* $(,)?) => {
+    ($($shader_name:ident),* $(,)?) => {
         #[inline(always)]
         pub fn render_shader(shader_index: u32, shader_input: &ShaderInput, shader_output: &mut ShaderResult) {
             match_index!(shader_index; $(
@@ -49,7 +49,7 @@ macro_rules! render_shader_macro {
             )*)
         }
 
-        pub const SHADER_DEFINITIONS: [ShaderDefinition; $num_shaders] = [
+        pub const SHADER_DEFINITIONS: &[ShaderDefinition] = &[
             $(
                 $shader_name::SHADER_DEFINITION,
             )*
@@ -57,11 +57,10 @@ macro_rules! render_shader_macro {
     };
 }
 
-render_shader_macro!(1, loading_repeating_circles,);
+render_shader_macro!(loading_repeating_circles,);
 
 /*
 render_shader_macro!(
-  29,
   loading_repeating_circles,
   two_tweets,
   heart,
@@ -92,4 +91,4 @@ render_shader_macro!(
   luminescence,
   voxel_pac_man,
 );
-*/
+ */
