@@ -689,7 +689,8 @@ fn draw_time_bar_discrete(
   final_alpha
 }
 
-/// Alpha compositing using "over" operator
+/// Alpha compositing using "over" operator.
+/// https://en.wikipedia.org/wiki/Alpha_compositing
 fn composite_layers<const N: usize>(overlay_colors: &[Vec4; N]) -> Vec4 {
   let mut result = Vec4::ZERO;
   for i in (0..overlay_colors.len()).rev() {
