@@ -8,16 +8,18 @@ pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
 
 pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
   let color = &mut render_result.color;
-  let (resolution, time, frag_coord) = (
+  let (resolution, time, frag_coord, mouse) = (
     render_instruction.resolution,
     render_instruction.time,
     render_instruction.frag_coord,
+    render_instruction.mouse,
   );
   Inputs {
     resolution,
     time,
     frame: (time * 60.0) as i32,
     target_framerate: 60.0,
+    mouse,
   }
   .main_image(color, frag_coord)
 }
@@ -27,6 +29,7 @@ pub struct Inputs {
   pub time: f32,
   pub frame: i32,
   pub target_framerate: f32,
+  pub mouse: Vec4,
 }
 
 const EPSILON: f32 = 1.0e-6;
@@ -410,6 +413,19 @@ pub fn exp_time(t: f32, c: f32) -> f32 {
   }
 }
 
+/// Returns the derivative of the exponential function.
+pub fn exp_time_derivative(t: f32, c: f32) -> f32 {
+  let c = c * 10.0;
+
+  if c.abs() < EPSILON {
+    return 1.0;
+  }
+
+  let numerator = c * (c * t).exp();
+  let denominator = c.exp() - 1.0;
+  numerator / denominator
+}
+
 struct RotatingCircleResult {
   position: Vec2,
   angle: f32,
@@ -480,6 +496,199 @@ fn draw_viewport_rect_outline(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32
   )
 }
 
+/// Draws a filled progress bar rectangle based on time `t`.
+/// This is a simplified version focusing on a basic filled rectangle.
+/// Bars are stacked downwards from the top of the screen.
+/// `uv`: coordinates relative to the center of the screen.
+/// `aspect`: half-dimensions of the screen (half-width, half-height), e.g., (aspect_ratio, 1.0) or (1.0, 1.0/aspect_ratio).
+/// `stroke`: This parameter will define the height of the time bar.
+/// `aa_width`: width for anti-aliasing smooth transitions at the edges of the bar.
+/// `t`: progress of the bar, from 0.0 (empty) to 1.0 (full).
+/// `index`: vertical stacking index of the bar. Index 0 is the top-most bar.
+/// Returns an alpha value (0.0 to 1.0) for the pixel, representing the bar's visibility.
+fn draw_time_bar(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32, t: f32, index: u32) -> f32 {
+  // --- Bar Configuration ---
+  // The `stroke` argument is interpreted as the desired height of the bar.
+  let bar_height = stroke;
+
+  // If the bar height is non-positive, it's invisible.
+  if bar_height <= 0.0 {
+    return 0.0;
+  }
+
+  // A small constant gap between stacked bars.
+  const INTER_BAR_CONSTANT_GAP: f32 = 0.01; // Normalized screen units.
+
+  // --- Bar Dimensions & Position ---
+  // The bar spans the full width of the viewport.
+  let bar_full_potential_width = aspect.x * 2.0;
+
+  // Calculate the vertical position of the current bar.
+  // `index = 0` is the top-most bar.
+  // `aspect.y` is the Y-coordinate of the top edge of the screen.
+  // Each subsequent bar (`index > 0`) is placed below the previous one.
+  let bar_top_edge_y = aspect.y - (index as f32) * (bar_height + INTER_BAR_CONSTANT_GAP);
+  let bar_vertical_center_y = bar_top_edge_y - bar_height / 2.0;
+
+  // --- Fill Calculation ---
+  // Clamp progress `t` to the [0, 1] range.
+  let t_clamped = t.clamp(0.0, 1.0);
+
+  // Calculate the current width of the filled portion of the bar.
+  let current_filled_width = bar_full_potential_width * t_clamped;
+
+  // If the bar is too thin to be rendered meaningfully (thinner than anti-aliasing width),
+  // treat it as invisible to prevent rendering artifacts.
+  if current_filled_width < aa_width || bar_height < aa_width {
+    return 0.0;
+  }
+
+  // The filled portion of the bar starts from the left screen edge (`-aspect.x`).
+  // Calculate the X-coordinate of the center of this filled portion.
+  let filled_portion_horizontal_center_x = -aspect.x + current_filled_width / 2.0;
+
+  // Define the center and half-dimensions of the filled rectangle.
+  let fill_rect_center_pos = vec2(filled_portion_horizontal_center_x, bar_vertical_center_y);
+  let fill_rect_half_dims = vec2(current_filled_width / 2.0, bar_height / 2.0);
+
+  // --- SDF and Anti-aliasing ---
+  // Transform current `uv` to be relative to the center of the filled rectangle.
+  let uv_relative_to_fill_rect_center = uv - fill_rect_center_pos;
+
+  // Calculate the signed distance to the boundary of the filled rectangle.
+  // `sd_box` returns < 0 inside, 0 on boundary, > 0 outside.
+  let distance_to_fill_boundary = sd_box(uv_relative_to_fill_rect_center, fill_rect_half_dims);
+
+  // Use `smoothstep` to create a smooth transition (anti-aliasing) at the edges.
+  // `smoothstep(edge0, edge1, x)`:
+  // Here, `edge0 = aa_width`, `edge1 = -aa_width`.
+  // If `distance_to_fill_boundary` is less than `-aa_width` (deep inside), alpha is 1.0.
+  // If `distance_to_fill_boundary` is greater than `aa_width` (far outside), alpha is 0.0.
+  // Transition occurs between `-aa_width` and `aa_width`.
+  let alpha = smoothstep(aa_width, -aa_width, distance_to_fill_boundary);
+
+  alpha
+}
+
+/// Draws a filled progress bar rectangle that fills in discrete steps,
+/// with new steps fading in.
+/// Bars are stacked downwards from the top of the screen.
+/// `uv`: coordinates relative to the center of the screen.
+/// `aspect`: half-dimensions of the screen (half-width, half-height).
+/// `stroke`: This parameter will define the height of the time bar.
+/// `aa_width`: width for anti-aliasing smooth transitions at the edges of the bar.
+/// `t`: overall progress of the bar, from 0.0 (empty) to 1.0 (full).
+/// `index`: vertical stacking index of the bar. Index 0 is the top-most bar.
+/// `steps`: the number of discrete steps the bar fills in. If 0, bar is invisible. If 1, bar fades in fully.
+/// Returns an alpha value (0.0 to 1.0) for the pixel, representing the bar's visibility.
+fn draw_time_bar_discrete(
+  uv: Vec2,
+  aspect: Vec2,
+  stroke: f32,
+  aa_width: f32,
+  t: f32, // Overall progress
+  index: u32,
+  steps: u32,
+) -> f32 {
+  // --- Basic Validations ---
+  // If bar has no height or no steps, it's invisible.
+  if stroke <= 0.0 || steps == 0 {
+    return 0.0;
+  }
+
+  // --- Bar Configuration ---
+  let bar_height = stroke;
+  // Consistent gap with draw_time_bar if used together.
+  const INTER_BAR_CONSTANT_GAP: f32 = 0.01; // Normalized screen units.
+
+  // --- Bar Dimensions & Position ---
+  // Bar spans the full potential width of the viewport.
+  let bar_full_potential_width = aspect.x * 2.0;
+  // Calculate vertical position of the bar.
+  let bar_top_edge_y = aspect.y - (index as f32) * (bar_height + INTER_BAR_CONSTANT_GAP);
+  let bar_vertical_center_y = bar_top_edge_y - bar_height / 2.0;
+
+  // --- Progress Calculation ---
+  // Clamp overall progress `t` to the [0, 1] range.
+  let t_clamped = t.clamp(0.0, 1.0);
+
+  // If progress is effectively zero, bar is invisible.
+  if t_clamped <= EPSILON {
+    return 0.0;
+  }
+
+  // Calculate the render width of a single discrete step.
+  let single_step_render_width = bar_full_potential_width / steps as f32;
+
+  // Convert overall progress `t_clamped` into step-based progress.
+  // e.g., t_clamped=0.6, steps=4 -> progress_in_num_steps=2.4
+  // This means 2 steps are fully complete, and the 3rd step is 40% through its fade-in.
+  let progress_in_num_steps = t_clamped * steps as f32;
+
+  // Number of fully completed (solid) segments.
+  // For progress_in_num_steps=2.4, num_solid_segments=2.
+  let num_solid_segments = progress_in_num_steps.floor() as u32;
+
+  // Fractional progress within the current fading-in segment (0.0 to ~1.0).
+  // For progress_in_num_steps=2.4, current_segment_fade_progress=0.4.
+  // This value determines the alpha of the fading segment.
+  let current_segment_fade_progress = progress_in_num_steps.fract();
+
+  let mut final_alpha: f32 = 0.0;
+
+  // --- 1. Draw Fully Completed (Solid) Segments ---
+  if num_solid_segments > 0 {
+    let solid_part_width = num_solid_segments as f32 * single_step_render_width;
+
+    // Ensure the solid part has a positive width to render.
+    if solid_part_width > EPSILON {
+      let solid_rect_half_dims = vec2(solid_part_width * 0.5, bar_height * 0.5);
+      // Solid part starts at left edge (-aspect.x) and extends by solid_part_width.
+      let solid_rect_center_x = -aspect.x + solid_part_width * 0.5;
+      let solid_rect_center_pos = vec2(solid_rect_center_x, bar_vertical_center_y);
+
+      // Calculate SDF for the solid part.
+      let dist_to_solid_boundary = sd_box(uv - solid_rect_center_pos, solid_rect_half_dims);
+      // Apply anti-aliasing.
+      let alpha_solid_part = smoothstep(aa_width, -aa_width, dist_to_solid_boundary);
+      final_alpha = final_alpha.max(alpha_solid_part);
+    }
+  }
+
+  // --- 2. Draw the Currently Fading-In Segment ---
+  // This segment is drawn if:
+  //   a) Not all steps are already solid (num_solid_segments < steps).
+  //   b) There's some progress into this new segment (current_segment_fade_progress > EPSILON).
+  if num_solid_segments < steps && current_segment_fade_progress > EPSILON {
+    // The fading segment starts where the solid segments (if any) ended.
+    let fading_segment_start_x = -aspect.x + (num_solid_segments as f32 * single_step_render_width);
+
+    let fading_rect_half_dims = vec2(single_step_render_width * 0.5, bar_height * 0.5);
+    // Center of this single fading segment.
+    let fading_rect_center_x = fading_segment_start_x + single_step_render_width * 0.5;
+    let fading_rect_center_pos = vec2(fading_rect_center_x, bar_vertical_center_y);
+
+    // Calculate SDF for the shape of the fading segment.
+    let dist_to_fading_boundary = sd_box(uv - fading_rect_center_pos, fading_rect_half_dims);
+    // Base alpha for the shape with anti-aliasing.
+    let base_alpha_fading_shape = smoothstep(aa_width, -aa_width, dist_to_fading_boundary);
+
+    // Modulate shape alpha by the fade-in progress.
+    let alpha_fading_part = base_alpha_fading_shape * current_segment_fade_progress;
+    final_alpha = final_alpha.max(alpha_fading_part);
+  }
+
+  // Edge case: t_clamped = 1.0 (fully complete)
+  // - progress_in_num_steps = steps as f32
+  // - num_solid_segments = steps
+  // - current_segment_fade_progress = 0.0 (or very close to 0 due to precision)
+  // Solid part: Draws all 'steps' segments fully.
+  // Fading part: Condition 'num_solid_segments < steps' is false, so it's skipped.
+  // Result: The entire bar is solid, which is correct.
+
+  final_alpha
+}
+
 /// Alpha compositing using "over" operator
 fn composite_layers<const N: usize>(overlay_colors: &[Vec4; N]) -> Vec4 {
   let mut result = Vec4::ZERO;
@@ -494,6 +703,8 @@ fn composite_layers<const N: usize>(overlay_colors: &[Vec4; N]) -> Vec4 {
   return result;
 }
 
+const SHOW_TIME_BAR: bool = true;
+
 impl Inputs {
   pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
     // Get screen dimensions as Vec2.
@@ -501,11 +712,22 @@ impl Inputs {
     // Determine the shorter dimension of the screen.
     let shorter_dim = screen_xy.min_element();
 
+    let mut DEBUG = false;
+    // if mouse is pressed, enable debug mode
+    if self.mouse.z > 0.0 {
+      DEBUG = true;
+    }
+
     let debug_zoom = 10.0;
     let debug_translate = vec2(0.0, 9.0);
 
-    let debug_zoom = 5.0;
-    let debug_translate = vec2(0.0, 4.5);
+    let mut debug_zoom = 5.0;
+    let mut debug_translate = vec2(0.0, 4.5);
+
+    if !DEBUG {
+      debug_zoom = 1.0;
+      debug_translate = vec2(0.0, 0.0);
+    }
 
     // Compute normalized pixel coordinates.
     // This maps the center of the screen to (0,0) and the shortest side to [-1,1].
@@ -519,6 +741,7 @@ impl Inputs {
     let mut black_alpha: f32 = 0.0;
     let mut debug_red_alpha: f32 = 0.0;
     let mut debug_blue_alpha: f32 = 0.0;
+    let mut debug_time_bar_alpha: f32 = 0.0;
 
     let m_viewport_rect = draw_viewport_rect_outline(uv, aspect, 0.1, aa_width);
     debug_red_alpha = debug_red_alpha.max(m_viewport_rect);
@@ -533,14 +756,15 @@ impl Inputs {
     let target_radius = 0.2;
     let target_stroke = 0.05;
     let period = 8.0; //4.0; // seconds
-    let period = 8.0; //4.0; // seconds
+    let period = 4.0; // seconds
     let t_master = (self.time / period).fract();
     //let t_master = 0.95;
     //let t_master = 0.8;
     //let t_master = 0.6;
     //let t_master = 0.5;
-    let t_middle = exp_time(t_master, -0.4);
-    let t_rotation = exp_time(t_master, 0.6);
+    let t_outer_circle_radi = exp_time(remap_time(t_master, 0.3, 1.0), -0.4);
+
+    let t_rotation = exp_time(t_master, 0.8);
     let t_trail_delayed = remap_time(t_master, 0.4, 1.0);
     let t_trail = exp_time(t_trail_delayed, 0.4);
     let t_assist_circle_delayed = remap_time(t_master, 0.5, 0.9);
@@ -558,22 +782,41 @@ impl Inputs {
         H = H_candidate;
       }
     }
-    H = H * 1.6;
     // move from bottom_middle to center
     let middle_circle_start_radius = start_radius + H;
-    let middle_circle_radius = mix(middle_circle_start_radius, target_radius, t_middle);
+    let middle_circle_radius = mix(middle_circle_start_radius, target_radius, t_master);
     let middle_circle_start_position = bottom_middle - Vec2::new(0.0, H);
-    let mut middle_circle_position = mix(middle_circle_start_position, center, t_middle);
+
+    let mut middle_circle_position = mix(middle_circle_start_position, center, t_master);
+    let mut middle_circle_position = rotating_discrete_circle(
+      middle_circle_start_position / 2.0, // maybe without /2.0
+      middle_circle_start_radius / 2.0,
+      -t_master / 2.0 * TWO_PI, // we only want half the rotation
+      4,
+      3,
+    )
+    .position;
+    let middle_circle_radius = middle_circle_position.y.abs().max(target_radius);
+
+    let m_middle_circle_position_path = sdf_circle_outline(
+      uv,
+      middle_circle_start_position / 2.0,
+      middle_circle_start_radius / 2.0,
+      target_stroke / 2.0,
+    );
+    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_position_path);
+
     let middle_circle_moved_distance =
       (middle_circle_start_position - middle_circle_position).length();
-    let outer_circle_outer_radius = (middle_circle_start_radius + target_radius)
-      - (middle_circle_radius + middle_circle_moved_distance);
+    let outer_circle_outer_radius = mix(target_radius, 0.0, t_outer_circle_radi);
+    // (middle_circle_start_radius + target_radius)
+    //  - (middle_circle_radius + middle_circle_moved_distance);
     let trail_angular_extent = mix(0.0, angle_between_circles, t_trail);
     let outer_circle_fade = mix(1.0, 0.4, t_trail);
 
     // y adjust to follow the middle circle
-    middle_circle_position.y -=
-      (middle_circle_position.y + middle_circle_radius) * (1.0 - t_master);
+    //middle_circle_position.y -=
+    //  (middle_circle_position.y + middle_circle_radius) * (1.0 - t_master);
 
     let m_start_circle = sdf_circle_outline(uv, Vec2::ZERO, target_radius, target_stroke);
     debug_red_alpha = debug_red_alpha.max(m_start_circle);
@@ -585,12 +828,20 @@ impl Inputs {
     );
     debug_red_alpha = debug_red_alpha.max(m_middle_circle_path);
 
+    let m_middle_circle_outline = sdf_circle_outline(
+      uv,
+      middle_circle_position,
+      middle_circle_radius,
+      target_stroke / 2.0,
+    );
+    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_outline);
+
     for i in 0..num_circles {
       // Compute the position of the circle based on the angle and radius.
       let outer_discrete_circle = rotating_discrete_circle(
         middle_circle_position,
         middle_circle_radius,
-        -t_rotation * TWO_PI * 5.0,
+        -t_master * TWO_PI / 2.0 - t_rotation * TWO_PI * 5.0,
         num_circles,
         i,
       );
@@ -621,13 +872,48 @@ impl Inputs {
       black_alpha = black_alpha.max((smoothstep(0.0, aa_width, m)) * t_assist_circle);
     }
 
+    let m_master_time_bar = draw_time_bar(
+      uv,
+      aspect,
+      target_stroke,
+      aa_width,
+      t_master,
+      0, // index
+    );
+    debug_time_bar_alpha = debug_time_bar_alpha.max(m_master_time_bar);
+    let m_master_time_bar = draw_time_bar_discrete(
+      uv,
+      aspect,
+      target_stroke,
+      aa_width,
+      t_master,
+      1, // index
+      10,
+    );
+    debug_time_bar_alpha = debug_time_bar_alpha.max(m_master_time_bar);
+
+    if !DEBUG {
+      debug_blue_alpha = 0.0;
+      debug_red_alpha = 0.0;
+    }
+
+    if !SHOW_TIME_BAR {
+      debug_time_bar_alpha = 0.0;
+    }
+
     let color_background = Vec4::ONE;
     let color_black = Vec4::new(0.0, 0.0, 0.0, black_alpha);
-    //debug_red_alpha = 0.0;
     let color_red = Vec4::new(1.0, 0.0, 0.0, debug_red_alpha * 0.5);
     let color_blue = Vec4::new(0.0, 0.0, 1.0, debug_blue_alpha * 0.5);
+    let color_time_bar = Vec4::new(0.0, 1.0, 0.0, debug_time_bar_alpha * 0.5);
 
-    let color_rgb = composite_layers(&[color_background, color_black, color_red, color_blue]);
+    let color_rgb = composite_layers(&[
+      color_background,
+      color_black,
+      color_red,
+      color_blue,
+      color_time_bar,
+    ]);
 
     // Output final pixel color with alpha = 1.0.
     *frag_color = color_rgb;
