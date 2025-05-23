@@ -768,7 +768,7 @@ impl Inputs {
     let t_rotation = exp_time(t_master, 0.8);
     let t_trail_delayed = remap_time(t_master, 0.4, 1.0);
     let t_trail = exp_time(t_trail_delayed, 0.4);
-    let t_assist_circle_delayed = remap_time(t_master, 0.5, 0.9);
+    let t_assist_circle_delayed = remap_time(t_master, 0.5, 0.95);
     let t_assist_circle = exp_time(t_assist_circle_delayed, 0.4);
     //let t_exp = 1.0 - (-5.0 * t).exp();
 

@@ -48,6 +48,7 @@ pub struct ShaderInput {
   pub resolution: Vec3,
   pub time: f32,
   pub frag_coord: Vec2,
+  /// https://www.shadertoy.com/view/Mss3zH
   pub mouse: Vec4,
 }
 
