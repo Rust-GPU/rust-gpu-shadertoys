@@ -1,5 +1,5 @@
 //! Created by raldone01 :D
-
+//! Special thanks to Thehanna on MathSE
 use crate::shader_prelude::*;
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
@@ -18,7 +18,6 @@ pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderRes
     resolution,
     time,
     frame: (time * 60.0) as i32,
-    target_framerate: 60.0,
     mouse,
   }
   .main_image(color, frag_coord)
@@ -28,175 +27,220 @@ pub struct Inputs {
   pub resolution: Vec3,
   pub time: f32,
   pub frame: i32,
-  pub target_framerate: f32,
   pub mouse: Vec4,
 }
 
+/// Epsilon used for floating-point comparisons.
 const EPSILON: f32 = 1.0e-6;
+/// Anti-aliasing width for edges.
+const AA_WIDTH: f32 = 0.01;
 
-fn calculate_H(aspect: Vec2, outer_circle_radius: f32, angle_between_circles: f32) -> f32 {
-  let h = aspect.y * 2.0;
-  let w = aspect.x * 2.0;
+/// An SDF value that can be negative (inside the shape) or positive (outside the shape).
+#[derive(Copy, Clone, PartialEq, PartialOrd)]
+struct SDFValue(f32);
+impl SDFValue {
+  /// Creates a new SDFValue.
+  pub fn new(value: f32) -> Self {
+    SDFValue(value)
+  }
 
-  // Calculate trigonometric values related to the arrangement of outer circles
-  // alpha_rad is the angle between lines from the origin to centers of adjacent "middle_circles"
-  // if they were arranged around the origin. The problem's geometry is a bit different,
-  // but alpha_rad is used to find one specific outer circle's position.
-  let alpha_rad = angle_between_circles;
-  let S_alpha = f32::sin(alpha_rad);
-  let C_alpha = f32::cos(alpha_rad);
+  /// Returns the raw f32 distance.
+  pub fn value(self) -> f32 {
+    self.0
+  }
 
-  // Initialize max_H to a very small number (acting as negative infinity)
-  // This will store the maximum valid H found among candidates.
-  let mut max_H = -1.0e37;
-  let mut found_valid_H = false;
+  /// Returns `true` if the SDF value is inside the shape (negative).
+  pub fn is_inside(self) -> bool {
+    self.0 < 0.0
+  }
 
-  // X represents the 'middle_circle_radius' from the Python code, which is -h/2.0 - H.
-  // We solve for X first, then find H = -X - h/2.0.
-  // For H to be maximized, X must be minimized (i.e., most negative).
+  /// Returns `true` if the SDF value is outside the shape (positive).
+  pub fn is_outside(self) -> bool {
+    self.0 > 0.0
+  }
 
-  // --- Candidate 1: Tangency to the Viewport's Bottom-Left Corner ---
-  // This involves solving a quadratic equation for X: A_quad*X^2 + B_quad*X + C_term_quadratic = 0
-  let A_quad = 2.0 * (1.0 - C_alpha);
-  let B_quad = S_alpha * w + (1.0 - C_alpha) * h;
-  let C_term_quadratic = (w * w + h * h) * 0.25 - outer_circle_radius * outer_circle_radius;
+  /// Converts the SDF value to an alpha value for anti-aliasing.
+  /// Alpha is 1.0 deep inside, 0.0 deep outside, and smooth in between.
+  /// The transition happens from `AA_WIDTH` (alpha 0) to `-AA_WIDTH` (alpha 1).
+  pub fn to_alpha(self) -> f32 {
+    return smoothstep(AA_WIDTH, -AA_WIDTH, self.0);
+  }
 
-  let mut discriminant_val = B_quad * B_quad - 4.0 * A_quad * C_term_quadratic;
+  /// Creates an outline (hollow shape) from the SDF.
+  ///
+  /// * `inner_thickness`: how much to expand inwards to form the inner boundary of the outline.
+  /// * `outer_thickness`: how much to expand outwards to form the outer boundary of the outline.
+  ///
+  /// The resulting SDF is negative *inside the outline material*.
+  pub fn to_outline_asym(self, inner_thickness: f32, outer_thickness: f32) -> SDFValue {
+    return SDFValue((self.0 - outer_thickness).max(-(self.0 + inner_thickness)));
+  }
+
+  /// Creates an outline (hollow shape) from the SDF.
+  pub fn to_outline(self, thickness: f32) -> SDFValue {
+    SDFValue(self.0.abs() - thickness)
+  }
+
+  /// Difference operation (self - other). Result is inside if inside self AND outside other.
+  /// Equivalent to Intersection(self, Invert(other)).
+  pub fn difference(self, other: SDFValue) -> SDFValue {
+    SDFValue(self.0.max(-other.0))
+  }
+
+  /// Union operation (self U other). Result is inside if inside self OR inside other.
+  pub fn union(self, other: SDFValue) -> SDFValue {
+    SDFValue(self.0.min(other.0))
+  }
+
+  /// Intersection operation (self ∩ other). Result is inside if inside self AND inside other.
+  pub fn intersection(self, other: SDFValue) -> SDFValue {
+    SDFValue(self.0.max(other.0))
+  }
+}
+
+/// Calculates the distance from the origin to the center of the initial main circle so that
+/// at time `0`, only one border circle is visible, with the others just touching the sides/bottom of the viewport.
+fn calculate_initial_distance_for_main_circle_center(
+  aspect: Vec2,
+  border_circle_radius: f32,
+  angle_between_circles: f32,
+) -> Option<f32> {
+  // Height and width of the viewport in normalized coordinates.
+  let h_half = aspect.y;
+  let h = h_half * 2.0;
+  let w_half = aspect.x;
+  let w = w_half * 2.0;
+
+  // Calculate the sin/cos values for the border circle.
+  let s_alpha = angle_between_circles.sin();
+  let c_alpha = angle_between_circles.cos();
+  let term_1_minus_c_alpha = 1.0 - c_alpha;
+
+  let mut max_distance = f32::NEG_INFINITY;
+
+  // Candidate 1: Corner Tangency to the left viewport corner.
+  // x = MCR = -h/2.0 - H
+  // (x*s_alpha + w/2)^2 + (x*(1-c_alpha) + h/2)^2 = border_circle_radius^2
+  // a_quad*x^2 + b_quad*x + c_quad_term = 0
+  let a_quad = 2.0 * term_1_minus_c_alpha;
+  let b_quad = s_alpha * w + term_1_minus_c_alpha * h;
+  let c_term_quadratic = (w * w + h * h) * 0.25 - border_circle_radius * border_circle_radius;
+
+  let mut discriminant_val = b_quad * b_quad - 4.0 * a_quad * c_term_quadratic;
 
   if discriminant_val >= -EPSILON {
     // Allow for small negative due to precision
-    discriminant_val = f32::max(0.0, discriminant_val); // Clamp to non-negative
+    discriminant_val = discriminant_val.max(0.0);
 
-    if f32::abs(A_quad) > EPSILON {
-      // Avoid division by zero if A_quad is effectively zero
-      // We need the solution for X that makes H positive, typically the more negative X.
-      let X_corner = (-B_quad - f32::sqrt(discriminant_val)) / (2.0 * A_quad);
+    if a_quad.abs() > EPSILON {
+      // Minimize x to find maximum distance
+      // Avoid division by zero if a_quad is effectively zero
+      let x_corner = (-b_quad - discriminant_val.sqrt()) / (2.0 * a_quad);
 
-      // Validity conditions for corner tangency:
+      // Check validity conditions:
       // The outer circle's center (x_c, y_c) must be in the region "beyond" the bottom-left corner.
-      // x_c = X_corner * S_alpha
-      // y_c = X_corner * (1.0 - C_alpha)
-      // Both S_alpha and (1.0-C_alpha) are non-negative for typical outer_circle_count.
-      // X_corner is negative. So x_c and y_c will be <= 0.
-      let x_cond_met = (X_corner * S_alpha <= -w / 2.0 + EPSILON);
-      let y_cond_met = (X_corner * (1.0 - C_alpha) <= -h / 2.0 + EPSILON);
+      // x_c = x_corner * s_alpha
+      // y_c = x_corner * (1.0 - c_alpha)
+      let x_cond_met = x_corner * s_alpha <= -w_half + EPSILON;
+      let y_cond_met = x_corner * term_1_minus_c_alpha <= -h_half + EPSILON;
 
-      if (x_cond_met && y_cond_met) {
-        let H_candidate_corner = -X_corner - h / 2.0;
+      if x_cond_met && y_cond_met {
+        let distance_candidate_corner = -x_corner;
         // H must be non-negative (allow for small float errors)
-        if (H_candidate_corner >= -EPSILON) {
-          max_H = f32::max(max_H, H_candidate_corner);
-          found_valid_H = true;
+        if distance_candidate_corner >= -EPSILON {
+          max_distance = max_distance.max(distance_candidate_corner);
         }
       }
     }
-    // else if A_quad is zero: This implies C_alpha=1 (e.g. outer_circle_count=1).
-    // Then S_alpha=0, B_quad=0. Equation becomes C_term_quadratic = 0.
-    // This means circle is at origin, tangency depends only on fixed params, not H.
-    // This case is skipped, which is fine as H wouldn't be determinable by this candidate.
   }
 
-  // --- Candidate 2: Tangency to the Viewport's Bottom Edge ---
-  // y_c = -h/2.0 - outer_circle_radius
-  // X*(1.0-C_alpha) = -h/2.0 - outer_circle_radius
-  let term_1_minus_C_alpha = 1.0 - C_alpha;
-  if (f32::abs(term_1_minus_C_alpha) > EPSILON) {
+  // Candidate 2: Bottom Edge Tangency
+  // y_c = -h/2.0 - border_circle_radius
+  // x*(1.0-c_alpha) = -h/2.0 - border_circle_radius
+  if term_1_minus_c_alpha.abs() > EPSILON {
     // Avoid division by zero
-    let X_bottom = (-h / 2.0 - outer_circle_radius) / term_1_minus_C_alpha;
+    let x_bottom = (-h_half - border_circle_radius) / term_1_minus_c_alpha;
 
     // Validity condition: x_c must be within the viewport's horizontal span.
-    // x_c = X_bottom * S_alpha
-    let x_c_check = X_bottom * S_alpha;
-    if (x_c_check >= -w / 2.0 - EPSILON && x_c_check <= w / 2.0 + EPSILON) {
-      let H_candidate_bottom = -X_bottom - h / 2.0;
-      if (H_candidate_bottom >= -EPSILON) {
-        max_H = f32::max(max_H, H_candidate_bottom);
-        found_valid_H = true;
+    // x_c = x_bottom * s_alpha
+    let x_c_check = x_bottom * s_alpha;
+    if x_c_check >= -w_half - EPSILON && x_c_check <= w_half + EPSILON {
+      let distance_candidate_bottom = -x_bottom;
+      if distance_candidate_bottom >= -EPSILON {
+        max_distance = max_distance.max(distance_candidate_bottom);
       }
     }
   }
-  // else if (1.0-C_alpha) is zero: y_c = 0. Condition becomes 0 = -h/2 - outer_circle_radius.
-  // Impossible for positive h, outer_circle_radius. Skipped.
 
-  // --- Candidate 3: Tangency to the Viewport's Left Edge ---
-  // x_c = -w/2.0 - outer_circle_radius
-  // X*S_alpha = -w/2.0 - outer_circle_radius
-  if (f32::abs(S_alpha) > EPSILON) {
+  // Candidate 3: Left Edge Tangency
+  // x_c = -w/2.0 - border_circle_radius
+  // x*s_alpha = -w/2.0 - border_circle_radius
+  if s_alpha.abs() > EPSILON {
     // Avoid division by zero
-    let X_left = (-w / 2.0 - outer_circle_radius) / S_alpha;
+    let x_left = (-w_half - border_circle_radius) / s_alpha;
 
     // Validity condition: y_c must be within the viewport's vertical span.
-    // y_c = X_left * (1.0 - C_alpha)
-    let y_c_check = X_left * (1.0 - C_alpha);
-    if (y_c_check >= -h / 2.0 - EPSILON && y_c_check <= h / 2.0 + EPSILON) {
-      let H_candidate_left = -X_left - h / 2.0;
-      if (H_candidate_left >= -EPSILON) {
-        max_H = f32::max(max_H, H_candidate_left);
-        found_valid_H = true;
+    // y_c = x_left * (1.0 - c_alpha)
+    let y_c_check = x_left * term_1_minus_c_alpha;
+    if y_c_check >= -h_half - EPSILON && y_c_check <= h_half + EPSILON {
+      let distance_candidate_left = -x_left;
+      if distance_candidate_left >= -EPSILON {
+        max_distance = max_distance.max(distance_candidate_left);
       }
     }
   }
-  // else if S_alpha is zero: x_c = 0. Condition becomes 0 = -w/2 - outer_circle_radius.
-  // Impossible for positive w, outer_circle_radius. Skipped.
 
-  if (!found_valid_H) {
-    // No valid H found (e.g., for degenerate inputs like outer_circle_count=1,
-    // or if parameters lead to no physical solution).
-    return -1.0; // Return sentinel value for error/no solution
+  if max_distance == f32::NEG_INFINITY {
+    return None;
   }
 
-  // Ensure H is non-negative, clamping small negative results from precision errors to 0.
-  return f32::max(0.0, max_H);
+  // Ensure positivity :D.
+  return Some(max_distance.max(0.0));
 }
 
-fn get_sausage_cap_extension_angle(half_stroke: f32, spine_radius: f32) -> f32 {
-  // If R is zero or negative, the geometry is undefined or trivial.
+/// Given an arc radius and its half-stroke width,
+/// this function computes the angle that the arc extends beyond its endpoints because of the stroke width.
+fn arc_cap_extension_angle(arc_radius: f32, half_stroke: f32) -> f32 {
   // Avoid division by zero.
-  if spine_radius <= 0.0 {
+  if arc_radius <= 0.0 {
     return 0.0;
   }
-  let r = half_stroke.abs();
+  let r = half_stroke;
 
-  let R_squared = spine_radius * spine_radius;
+  let big_r_squared = arc_radius * arc_radius;
   let r_squared = r * r;
 
-  let mut cos_alpha = 1.0 - r_squared / (2.0 * R_squared);
+  let mut cos_alpha = 1.0 - r_squared / (2.0 * big_r_squared);
 
   // The argument to acos must be in the range [-1.0, 1.0].
   // If r is very large (e.g., r > 2*R), cos_alpha can be < -1.0.
   // clamp() ensures the value is within the valid domain for acos.
-  // If r = 2R, cos_alpha = 1.0 - (4R^2)/(2R^2) = 1.0 - 2.0 = -1.0. acos(-1.0) = PI.
-  // This corresponds to the small circle being large enough to intersect at (0, -R).
-  // If r = 0, cos_alpha = 1.0. acos(1.0) = 0.0. (Small circle is a point at (0,R)).
-  cos_alpha = f32::clamp(cos_alpha, -1.0, 1.0);
+  cos_alpha = cos_alpha.clamp(-1.0, 1.0);
 
-  let alpha_radians = f32::acos(cos_alpha);
-
+  let alpha_radians = cos_alpha.acos();
   return alpha_radians;
 }
 
-/// SDF for a filled sausage shape (arc with thickness and rounded ends).
-/// uv: Current pixel coordinate.
-/// center_shape: Center of the arc for the sausage spine.
-/// start_angle, end_angle: Define the arc of the spine (in radians). The arc is drawn CCW from start_angle.
-///                         The length of the arc is `(end_angle - start_angle).rem_euclid(TWO_PI)`.
-/// spine_radius: Radius of the arc spine.
-/// opaque_percentage: Percentage of the sausage that is opaque, then it fades to transparent.
-/// Returns: vec2(sdf_value, fade_intensity)
-/// sdf_value: distance to surface (<0 inside, >0 outside)
-/// fade_intensity: 0 (fully faded/transparent at the very start of tail) to 1 (fully opaque)
-fn sdf_sausage_filled(
+/// SDF for an arc with rounded ends (sausage shape).
+///
+/// * `uv`: Current pixel coordinate.
+/// * `center_shape`: Center of the arc for the arc spine.
+/// * `start_angle`, `end_angle`: Defines the arc of the spine (in radians).
+///                               The arc is drawn CCW from `start_angle`.
+/// * `spine_radius`: Radius of the arc spine.
+/// * `stroke`: Width of the arc body.
+///
+/// Returns the [`SDFValue`] for the arc.
+fn sdf_arc_filled(
   uv: Vec2,
   center_shape: Vec2,
   start_angle: f32,
   end_angle: f32,
   spine_radius: f32,
   stroke: f32,
-  fade_center_angle: f32,
-  opaque_percentage: f32,
-) -> Vec2 {
+) -> SDFValue {
   let half_stroke = stroke * 0.5;
-  let p_local = uv - center_shape; // Point relative to arc center
+  let p = uv - center_shape;
 
   let mut effective_arc_length_angle = (end_angle - start_angle).rem_euclid(TWO_PI);
 
@@ -211,10 +255,10 @@ fn sdf_sausage_filled(
   if effective_arc_length_angle < EPSILON {
     // Case 1: Arc is effectively a point (a single circle)
     let arc_spine_point_local = vec2(start_angle.cos(), start_angle.sin()) * spine_radius;
-    sdf_value = (p_local - arc_spine_point_local).length() - half_stroke;
+    sdf_value = (p - arc_spine_point_local).length() - half_stroke;
   } else if (effective_arc_length_angle - TWO_PI).abs() < EPSILON {
     // Case 2: Arc is a full circle (annulus)
-    sdf_value = (p_local.length() - spine_radius).abs() - half_stroke;
+    sdf_value = (p.length() - spine_radius).abs() - half_stroke;
   } else {
     // Case 3: Arc is a partial arc (with rounded caps)
     let mid_angle_of_arc = start_angle + effective_arc_length_angle / 2.0;
@@ -223,8 +267,8 @@ fn sdf_sausage_filled(
     let cs_rot = rot_angle_for_symmetry.cos();
     let sn_rot = rot_angle_for_symmetry.sin();
 
-    let p_sym_x = p_local.x * cs_rot - p_local.y * sn_rot;
-    let p_sym_y = p_local.x * sn_rot + p_local.y * cs_rot;
+    let p_sym_x = p.x * cs_rot - p.y * sn_rot;
+    let p_sym_y = p.x * sn_rot + p.y * cs_rot;
     let p_sym = vec2(p_sym_x, p_sym_y);
 
     let half_arc_span_angle = effective_arc_length_angle / 2.0;
@@ -253,53 +297,52 @@ fn sdf_sausage_filled(
     }
   }
 
-  // Fade out the sausage
-  let fade_intensity: f32;
-
-  let cap_extension_angle = get_sausage_cap_extension_angle(half_stroke, spine_radius);
-  let fade_start_angle = start_angle - cap_extension_angle;
-  let fade_end_angle = end_angle + cap_extension_angle;
-  fade_intensity = circular_fade_out(
-    uv,
-    center_shape,
-    fade_start_angle,
-    fade_end_angle,
-    fade_center_angle,
-    opaque_percentage,
-  );
-
-  vec2(sdf_value, fade_intensity)
+  SDFValue(sdf_value)
 }
 
 /// Computes a circular angular fade-out based on direction from center.
-/// Returns 1.0 in the opaque region, fades to 0.0 outside it.
-fn circular_fade_out(
+///
+/// * `uv`: Current pixel coordinate.
+/// * `center`: Center of the circular arc.
+/// * `start_angle`, `end_angle`: Defines the arc of the spine (in radians).
+///                               The arc is drawn CCW from `start_angle`.
+/// * `spine_radius`: The radius of the arc spine.
+/// * `stroke`: The width of the arc.
+/// * `fade_center_angle`: The angle at which the fade starts.
+///                        The fade will extend symmetrically around this angle.
+/// * `opaque_percentage`: Percentage of the arc that is opaque.
+///                        The fade starts at the edges of the opaque region.
+/// * `fade_intensity`: `0` (fully faded/transparent) to `1` (fully opaque)
+///
+/// Returns `1` in the opaque region, fades to `0` outside it.
+fn arc_fade_out(
   uv: Vec2,
   center: Vec2,
   start_angle: f32,
   end_angle: f32,
+  spine_radius: f32,
+  stroke: f32,
   fade_center_angle: f32,
   opaque_percentage: f32,
 ) -> f32 {
+  let half_stroke = stroke * 0.5;
+  let cap_extension_angle = arc_cap_extension_angle(spine_radius, half_stroke);
+  let fade_start_angle = start_angle - cap_extension_angle;
+  let fade_end_angle = end_angle + cap_extension_angle;
+
   let dir = (uv - center).normalize();
   let mut angle = dir.y.atan2(dir.x);
   if angle < 0.0 {
     angle += TWO_PI;
   }
 
-  let arc_start = start_angle.rem_euclid(TWO_PI);
-  let arc_end = end_angle.rem_euclid(TWO_PI);
-  let mut span = arc_end - arc_start;
-  if span < 0.0 {
-    span += TWO_PI;
-  }
-
-  if span < 0.00001 {
-    return if opaque_percentage >= 0.9999 {
-      1.0
-    } else {
-      0.0
-    };
+  let arc_start = fade_start_angle.rem_euclid(TWO_PI);
+  let arc_end = fade_end_angle.rem_euclid(TWO_PI);
+  let mut effective_arc_length_angle = arc_end - arc_start;
+  if effective_arc_length_angle < EPSILON {
+    if (fade_start_angle - fade_end_angle).abs() > EPSILON {
+      effective_arc_length_angle = TWO_PI;
+    }
   }
 
   let mut rel_angle = angle - arc_start;
@@ -307,20 +350,20 @@ fn circular_fade_out(
     rel_angle += TWO_PI;
   }
 
-  if rel_angle > span + 0.0001 || rel_angle < -0.0001 {
+  if rel_angle > effective_arc_length_angle + EPSILON || rel_angle < EPSILON {
     return 0.0;
   }
-  rel_angle = rel_angle.clamp(0.0, span);
+  rel_angle = rel_angle.clamp(0.0, effective_arc_length_angle);
 
-  let norm_angle = rel_angle / span;
+  let norm_angle = rel_angle / effective_arc_length_angle;
 
   let fade_center = fade_center_angle.rem_euclid(TWO_PI);
   let mut center_rel = fade_center - arc_start;
   if center_rel < 0.0 {
     center_rel += TWO_PI;
   }
-  center_rel = center_rel.clamp(0.0, span);
-  let norm_center = center_rel / span;
+  center_rel = center_rel.clamp(0.0, effective_arc_length_angle);
+  let norm_center = center_rel / effective_arc_length_angle;
 
   let opaque = opaque_percentage.clamp(0.0, 1.0);
   let half_width = opaque / 2.0;
@@ -330,13 +373,13 @@ fn circular_fade_out(
   if norm_angle >= op_start && norm_angle <= op_end {
     return 1.0;
   } else if norm_angle < op_start {
-    if op_start <= 0.00001 {
+    if op_start <= EPSILON {
       return 0.0;
     } else {
       return smoothstep(0.0, op_start, norm_angle);
     }
   } else {
-    if op_end >= 1.0 - 0.00001 {
+    if op_end >= 1.0 - EPSILON {
       return 0.0;
     } else {
       return 1.0 - smoothstep(op_end, 1.0, norm_angle);
@@ -344,7 +387,23 @@ fn circular_fade_out(
   }
 }
 
-fn sdf_sausage_outline(
+/// SDF for an arc outline with rounded ends.
+///
+/// * `uv`: Current pixel coordinate.
+/// * `center_shape`: Center of the arc for the arc spine.
+/// * `start_angle`, `end_angle`: Defines the arc of the spine (in radians).
+///                               The arc is drawn CCW from `start_angle`.
+/// * `spine_radius`: Radius of the arc spine.
+/// * `inner_radius`: Inner radius of the arc outline.
+/// * `outer_radius`: Outer radius of the arc outline.
+/// * `fade_center_angle`: The angle at which the fade starts.
+///                        The fade will extend symmetrically around this angle.
+/// * `opaque_percentage`: Percentage of the arc that is opaque.
+///                        The fade starts at the edges of the opaque region.
+///
+/// Returns a `Vec2` with the first component being the SDF value
+/// and the second component being the fade intensity.
+fn sdf_arc_outline(
   uv: Vec2,
   center_shape: Vec2,
   start_angle: f32,
@@ -354,18 +413,26 @@ fn sdf_sausage_outline(
   outer_radius: f32,
   fade_center_angle: f32,
   opaque_percentage: f32,
-) -> Vec2 {
-  let m_inner = sdf_sausage_filled(
+) -> (SDFValue, f32) {
+  let sdf_inner = sdf_arc_filled(
     uv,
     center_shape,
     start_angle,
     end_angle,
     spine_radius,
     inner_radius * 2.0,
-    fade_center_angle,
-    opaque_percentage,
   );
-  let m_outer = sdf_sausage_filled(
+  let sdf_outer = sdf_arc_filled(
+    uv,
+    center_shape,
+    start_angle,
+    end_angle,
+    spine_radius,
+    outer_radius * 2.0,
+  );
+  // remove m_inner from m_outer
+  let sdf_value = sdf_outer.difference(sdf_inner);
+  let fade_intensity = arc_fade_out(
     uv,
     center_shape,
     start_angle,
@@ -375,10 +442,7 @@ fn sdf_sausage_outline(
     fade_center_angle,
     opaque_percentage,
   );
-  // remove m_inner from m_outer
-  let sdf_value = m_outer.x.max(-m_inner.x);
-  let fade_intensity = m_outer.y; // or m_inner.y, as they should be the same
-  vec2(sdf_value, fade_intensity)
+  (sdf_value, fade_intensity)
 }
 
 fn sdf_circle_outline(uv: Vec2, center: Vec2, radius: f32, stroke: f32) -> f32 {
@@ -387,21 +451,25 @@ fn sdf_circle_outline(uv: Vec2, center: Vec2, radius: f32, stroke: f32) -> f32 {
   // Half stroke for symmetric band.
   let half_th = stroke * 0.5;
   // Return 1 if pixel is within the stroke band.
-  return (dist - radius).abs().step(half_th);
+  (dist - radius).abs().step(half_th)
 }
 
-fn sdf_circle_outline_2(uv: Vec2, center: Vec2, inner_radius: f32, outer_radius: f32) -> f32 {
+fn sdf_circle(uv: Vec2, center: Vec2, inner_radius: f32, outer_radius: f32) -> f32 {
   // Compute distance from pixel to circle center.
   let dist = (uv - center).length();
   // Return 1 if pixel is within the stroke band.
-  return (dist - inner_radius)
+  (dist - inner_radius)
     .abs()
-    .step(outer_radius - inner_radius);
+    .step(outer_radius - inner_radius)
 }
 
 /// Returns a value along an exponential curve shaped by `c`.
-/// `t` should be in [0.0, 1.0].
-pub fn exp_time(t: f32, c: f32) -> f32 {
+///
+/// `c == 0` returns `t` (linear).
+///
+/// * `t` should be in `0..1`.
+/// * `c` is usually in `-2..2`.
+fn exp_time(t: f32, c: f32) -> f32 {
   let c = c * 10.0;
 
   if c.abs() < EPSILON {
@@ -414,7 +482,7 @@ pub fn exp_time(t: f32, c: f32) -> f32 {
 }
 
 /// Returns the derivative of the exponential function.
-pub fn exp_time_derivative(t: f32, c: f32) -> f32 {
+fn exp_time_derivative(t: f32, c: f32) -> f32 {
   let c = c * 10.0;
 
   if c.abs() < EPSILON {
@@ -426,12 +494,18 @@ pub fn exp_time_derivative(t: f32, c: f32) -> f32 {
   numerator / denominator
 }
 
+fn offset_loop_time(t: f32, offset: f32) -> f32 {
+  // Apply offset
+  let offset_t = t + offset;
+  // Wrap around to [0, 1]
+  return offset_t.rem_euclid(1.0);
+}
+
 struct RotatingCircleResult {
   position: Vec2,
   angle: f32,
 }
 
-/// t goes from 0 to 1
 fn rotating_discrete_circle(
   center: Vec2,
   radius: f32,
@@ -454,46 +528,84 @@ fn rotating_discrete_circle(
   }
 }
 
-/// General purpose function to remap a time segment to 0-1.
-/// parent_t: The main animation time, expected to be 0-1.
-/// start_time: The point in parent_t (0-1) where this sub-animation should begin.
-/// end_time: The point in parent_t (0-1) where this sub-animation should end.
-/// Returns: 0.0 before start_time, 1.0 after end_time, and a 0-1 ramp between them.
+/// General purpose function to remap a time segment to `0..1`.
+///
+/// * `parent_t`: The main animation time, expected to be `0..1`.
+/// * `start_time`: The point in parent_t (`0..1`) where this sub-animation should begin.
+/// * `end_time`: The point in parent_t (`0..1`) where this sub-animation should end.
+///
+/// Returns: `0` before `start_time`, `1` after `end_time`, and a `0..1` ramp between them.
 fn remap_time(parent_t: f32, start_time: f32, end_time: f32) -> f32 {
   if start_time >= end_time {
-    // If start and end are the same, or invalid order:
-    // Option 1: return 0 if parent_t < startTime, 1 if parent_t >= endTime (instant step)
-    // Option 2: return 0 always (safer for division by zero avoidance)
-    return if parent_t >= start_time { 1.0 } else { 0.0 }; // Option 1 (step)
-                                                           // return 0.0; // Option 2 (safer)
+    // If start and end are the same, or invalid order we do an instant step.
+    return if parent_t >= start_time { 1.0 } else { 0.0 };
   }
   let duration = end_time - start_time;
-  return f32::clamp((parent_t - start_time) / duration, 0.0, 1.0);
+  return ((parent_t - start_time) / duration).clamp(0.0, 1.0);
 }
 
-/// Signed distance function for a box centered at the origin.
-/// `p` is the point to evaluate.
-/// `b` is the half-dimensions of the box.
-fn sd_box(p: Vec2, b: Vec2) -> f32 {
-  let d = p.abs() - b;
-  let outside = d.max(Vec2::ZERO);
-  let inside = d.x.max(d.y).min(0.0);
-  outside.length() + inside
+#[repr(u32)]
+#[derive(Copy, Clone)]
+enum Positioning {
+  Centered,
+  TopLeft,
+  TopRight,
+  BottomLeft,
+  BottomRight,
+}
+
+/// SDF for a filled box.
+///
+/// * `uv`: The coordinates relative to the center of the box.
+/// * `center`: The center of the box.
+/// * `positioning`: How the box is positioned relative to `uv`.
+/// * `half_dimensions`: half-width and half-height of the box.
+///
+/// Returns the signed distance from the box.
+fn sdf_box_filled(uv: Vec2, center: Vec2, positioning: Positioning, half_dimensions: Vec2) -> f32 {
+  let actual_box_center = match positioning {
+    Positioning::Centered => center,
+    Positioning::TopLeft => Vec2::new(center.x + half_dimensions.x, center.y - half_dimensions.y),
+    Positioning::TopRight => Vec2::new(center.x - half_dimensions.x, center.y - half_dimensions.y),
+    Positioning::BottomLeft => {
+      Vec2::new(center.x + half_dimensions.x, center.y + half_dimensions.y)
+    },
+    Positioning::BottomRight => {
+      Vec2::new(center.x - half_dimensions.x, center.y + half_dimensions.y)
+    },
+  };
+
+  let p = uv - actual_box_center;
+  let d = p.abs() - half_dimensions;
+  let outside_distance = d.max(Vec2::ZERO).length();
+  let inside_distance = d.x.max(d.y).min(0.0);
+
+  outside_distance + inside_distance
 }
 
 /// Draws the outline of a rectangle using the signed distance function.
-/// `uv`: coordinates relative to the center of the rectangle.
-/// `aspect`: half-dimensions of the rectangle (half-width, half-height).
-/// `stroke`: thickness of the rectangle outline.
-fn draw_viewport_rect_outline(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32) -> f32 {
-  let distance = sd_box(uv, aspect);
+///
+/// * `uv`: The coordinates relative to the center of the rectangle.
+/// * `center`: The center of the box.
+/// * `positioning`: How the box is positioned relative to `uv`.
+/// * `half_dimensions`: half-width and half-height of the box.
+/// * `stroke`: This parameter will define the width of the outline.
+///
+/// Returns the signed distance from the rectangle outline.
+fn sdf_box_outline(
+  uv: Vec2,
+  center: Vec2,
+  positioning: Positioning,
+  half_dimensions: Vec2,
+  stroke: f32,
+) -> f32 {
+  let distance_to_filled_box = sdf_box_filled(uv, center, positioning, half_dimensions);
+
   let half_stroke = stroke * 0.5;
 
-  smoothstep(
-    half_stroke + aa_width,
-    half_stroke - aa_width,
-    distance.abs(),
-  )
+  let distance_to_outline = distance_to_filled_box.abs() - half_stroke;
+
+  distance_to_outline
 }
 
 /// Draws a filled progress bar rectangle based on time `t`.
@@ -557,7 +669,12 @@ fn draw_time_bar(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32, t: f32, ind
 
   // Calculate the signed distance to the boundary of the filled rectangle.
   // `sd_box` returns < 0 inside, 0 on boundary, > 0 outside.
-  let distance_to_fill_boundary = sd_box(uv_relative_to_fill_rect_center, fill_rect_half_dims);
+  let distance_to_fill_boundary = sdf_box_filled(
+    uv_relative_to_fill_rect_center,
+    Vec2::ZERO,
+    Positioning::Centered,
+    fill_rect_half_dims,
+  );
 
   // Use `smoothstep` to create a smooth transition (anti-aliasing) at the edges.
   // `smoothstep(edge0, edge1, x)`:
@@ -648,7 +765,12 @@ fn draw_time_bar_discrete(
       let solid_rect_center_pos = vec2(solid_rect_center_x, bar_vertical_center_y);
 
       // Calculate SDF for the solid part.
-      let dist_to_solid_boundary = sd_box(uv - solid_rect_center_pos, solid_rect_half_dims);
+      let dist_to_solid_boundary = sdf_box_filled(
+        uv,
+        solid_rect_center_pos,
+        Positioning::Centered,
+        solid_rect_half_dims,
+      );
       // Apply anti-aliasing.
       let alpha_solid_part = smoothstep(aa_width, -aa_width, dist_to_solid_boundary);
       final_alpha = final_alpha.max(alpha_solid_part);
@@ -669,7 +791,12 @@ fn draw_time_bar_discrete(
     let fading_rect_center_pos = vec2(fading_rect_center_x, bar_vertical_center_y);
 
     // Calculate SDF for the shape of the fading segment.
-    let dist_to_fading_boundary = sd_box(uv - fading_rect_center_pos, fading_rect_half_dims);
+    let dist_to_fading_boundary = sdf_box_filled(
+      uv,
+      fading_rect_center_pos,
+      Positioning::Centered,
+      fading_rect_half_dims,
+    );
     // Base alpha for the shape with anti-aliasing.
     let base_alpha_fading_shape = smoothstep(aa_width, -aa_width, dist_to_fading_boundary);
 
@@ -742,18 +869,24 @@ impl Inputs {
     let mut black_alpha: f32 = 0.0;
     let mut debug_red_alpha: f32 = 0.0;
     let mut debug_blue_alpha: f32 = 0.0;
-    let mut debug_time_bar_alpha: f32 = 0.0;
+    let mut debug_green_alpha: f32 = 0.0;
 
-    let m_viewport_rect = draw_viewport_rect_outline(uv, aspect, 0.1, aa_width);
-    debug_red_alpha = debug_red_alpha.max(m_viewport_rect);
+    let outline_stroke = 0.05; // Width of the outline stroke.
+    let m_viewport_rect = sdf_box_outline(
+      uv,
+      Vec2::ZERO,
+      Positioning::Centered,
+      aspect,
+      outline_stroke,
+    );
+    debug_red_alpha = debug_red_alpha.max(1.0 - smoothstep(0.0, aa_width, m_viewport_rect));
 
-    let center = vec2(0.0, 0.0);
+    let center = Vec2::ZERO;
     let bottom_middle = vec2(0.0, -aspect.y);
     let top_middle = vec2(0.0, aspect.y);
     let left_middle = vec2(-aspect.x, 0.0);
     let right_middle = vec2(aspect.x, 0.0);
 
-    let start_radius = (bottom_middle - center).length();
     let target_radius = 0.2;
     let target_stroke = 0.05;
     let period = 8.0; //4.0; // seconds
@@ -763,6 +896,7 @@ impl Inputs {
     //let t_master = 0.8;
     //let t_master = 0.6;
     //let t_master = 0.5;
+    let t_master_offset = offset_loop_time(t_master, 0.5);
     let t_outer_circle_radi = exp_time(remap_time(t_master, 0.3, 1.0), -0.4);
 
     let t_rotation = exp_time(t_master, 0.8);
@@ -778,21 +912,26 @@ impl Inputs {
     let mut H = 0.0;
     for i in 0..num_circles {
       let circle_angle = angle_between_circles * i as f32;
-      let H_candidate = calculate_H(aspect, target_radius + target_stroke / 2.0, circle_angle);
-      if H_candidate > H {
-        H = H_candidate;
+      let H_candidate = calculate_initial_distance_for_main_circle_center(
+        aspect,
+        target_radius + target_stroke / 2.0,
+        circle_angle,
+      );
+      if let Some(H_candidate) = H_candidate {
+        H = H_candidate.max(H);
       }
     }
     // move from bottom_middle to center
-    let middle_circle_start_radius = start_radius + H;
-    let middle_circle_radius = mix(middle_circle_start_radius, target_radius, t_master);
-    let middle_circle_start_position = bottom_middle - Vec2::new(0.0, H);
+    let middle_circle_start_radius = H;
+    let middle_circle_radius =
+      mix(middle_circle_start_radius, 0.0, t_master * t_master).max(target_radius);
+    let middle_circle_start_position = Vec2::new(0.0, -H);
 
     let mut middle_circle_position = mix(middle_circle_start_position, center, t_master);
     let mut middle_circle_position = rotating_discrete_circle(
       middle_circle_start_position / 2.0, // maybe without /2.0
       middle_circle_start_radius / 2.0,
-      -t_master / 2.0 * TWO_PI, // we only want half the rotation
+      -t_master * PI, // we only want half the rotation
       4,
       3,
     )
@@ -842,14 +981,14 @@ impl Inputs {
       let outer_discrete_circle = rotating_discrete_circle(
         middle_circle_position,
         middle_circle_radius,
-        -t_master * TWO_PI / 2.0 - t_rotation * TWO_PI * 5.0,
+        -t_master * PI - t_rotation * TWO_PI * 5.0,
         num_circles,
         i,
       );
 
       let outer_circle_inner_radius = (outer_circle_outer_radius - target_stroke / 2.0).max(0.0);
       let outer_circle_outer_radius = outer_circle_outer_radius + target_stroke / 2.0;
-      let m = sdf_sausage_outline(
+      let m = sdf_arc_outline(
         uv,
         middle_circle_position,
         outer_discrete_circle.angle - trail_angular_extent / 2.0,
@@ -860,8 +999,7 @@ impl Inputs {
         outer_discrete_circle.angle,
         outer_circle_fade,
       );
-      black_alpha =
-        black_alpha.max((1.0 - smoothstep(0.0, aa_width, m.x)) * (m.y + t_assist_circle).min(1.0));
+      black_alpha = black_alpha.max(m.0.to_alpha() * (m.1 + t_assist_circle).min(1.0));
       // * (m.y + 6.0 / 256.0));
 
       let m = sdf_circle_outline(
@@ -873,47 +1011,71 @@ impl Inputs {
       black_alpha = black_alpha.max((smoothstep(0.0, aa_width, m)) * t_assist_circle);
     }
 
-    let m_master_time_bar = draw_time_bar(
-      uv,
-      aspect,
-      target_stroke,
-      aa_width,
-      t_master,
-      0, // index
-    );
-    debug_time_bar_alpha = debug_time_bar_alpha.max(m_master_time_bar);
-    let m_master_time_bar = draw_time_bar_discrete(
-      uv,
-      aspect,
-      target_stroke,
-      aa_width,
-      t_master,
-      1, // index
-      10,
-    );
-    debug_time_bar_alpha = debug_time_bar_alpha.max(m_master_time_bar);
+    if DEBUG {
+      let sdf_arc_test = sdf_arc_outline(
+        uv,
+        center,
+        -PI / 4.0,
+        PI / 4.0,
+        1.0,
+        0.1,
+        0.3,
+        -PI / 4.0,
+        1.0,
+      );
+      debug_green_alpha = debug_green_alpha.max(sdf_arc_test.0.to_alpha() * sdf_arc_test.1);
+    }
 
     if !DEBUG {
       debug_blue_alpha = 0.0;
       debug_red_alpha = 0.0;
+      debug_green_alpha = 0.0;
     }
 
-    if !SHOW_TIME_BAR {
-      debug_time_bar_alpha = 0.0;
+    if SHOW_TIME_BAR {
+      let m_master_time_bar = draw_time_bar(
+        uv,
+        aspect,
+        target_stroke,
+        aa_width,
+        t_master,
+        0, // index
+      );
+      debug_green_alpha = debug_green_alpha.max(m_master_time_bar);
+      let m_master_time_bar = draw_time_bar_discrete(
+        uv,
+        aspect,
+        target_stroke,
+        aa_width,
+        t_master,
+        1, // index
+        10,
+      );
+      debug_green_alpha = debug_green_alpha.max(m_master_time_bar);
+
+      let m_master_time_offset_bar = draw_time_bar(
+        uv,
+        aspect,
+        target_stroke,
+        aa_width,
+        t_master_offset,
+        2, // index
+      );
+      debug_red_alpha = debug_red_alpha.max(m_master_time_offset_bar);
     }
 
     let color_background = Vec4::ONE;
     let color_black = Vec4::new(0.0, 0.0, 0.0, black_alpha);
     let color_red = Vec4::new(1.0, 0.0, 0.0, debug_red_alpha * 0.5);
     let color_blue = Vec4::new(0.0, 0.0, 1.0, debug_blue_alpha * 0.5);
-    let color_time_bar = Vec4::new(0.0, 1.0, 0.0, debug_time_bar_alpha * 0.5);
+    let color_green = Vec4::new(0.0, 1.0, 0.0, debug_green_alpha * 0.5);
 
     let color_rgb = composite_layers(&[
       color_background,
       color_black,
       color_red,
       color_blue,
-      color_time_bar,
+      color_green,
     ]);
 
     // Output final pixel color with alpha = 1.0.

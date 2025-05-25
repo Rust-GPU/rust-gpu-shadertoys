@@ -1869,7 +1869,7 @@ dependencies = [
 name = "shadertoys-shaders"
 version = "0.0.0"
 dependencies = [
- "shared",
+ "bytemuck",
  "spirv-std",
 ]
 
@@ -1882,7 +1882,6 @@ dependencies = [
  "futures",
  "ouroboros",
  "shadertoys-shaders",
- "shared",
  "spirv-builder",
  "wgpu",
  "winit",
@@ -1895,14 +1894,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
-]
-
-[[package]]
-name = "shared"
-version = "0.0.0"
-dependencies = [
- "bytemuck",
- "spirv-std",
 ]
 
 [[package]]

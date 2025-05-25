@@ -11,7 +11,6 @@ use-installed-tools = ["spirv-builder/use-installed-tools"]
 use-compiled-tools = ["spirv-builder/use-compiled-tools"]
 
 [dependencies]
-shared = { path = "shared" }
 shadertoys-shaders = { path = "shaders" }
 futures = { version = "0.3", default-features = false, features = [
     "std",
@@ -27,7 +26,7 @@ ouroboros = "0.18.5"
 spirv-builder.workspace = true
 
 [workspace]
-members = ["shaders", "shared"]
+members = ["shaders"]
 
 [workspace.dependencies]
 spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "0b37696e9f5edde8fa0c1363a88e6c8cb8e6ff68", default-features = false }

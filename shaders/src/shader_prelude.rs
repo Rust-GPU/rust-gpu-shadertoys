@@ -1,8 +1,9 @@
 pub use core::f32::consts::{FRAC_1_PI, FRAC_PI_2, PI};
+use core::ops::{Add, Mul, Sub};
 pub const TWO_PI: f32 = 2.0 * PI;
 pub const SQRT3: f32 = 1.7320508075688772;
 
-pub use shared::*;
+pub use crate::shared_data::ShaderConstants;
 pub use spirv_std::{
   arch::Derivative,
   glam::{
@@ -58,4 +59,248 @@ pub struct ShaderResult {
 
 pub struct ShaderDefinition {
   pub name: &'static str,
+}
+
+#[inline(always)]
+pub fn saturate_vec3(a: Vec3) -> Vec3 {
+  a.clamp(Vec3::ZERO, Vec3::ONE)
+}
+#[inline(always)]
+pub fn saturate_vec2(a: Vec2) -> Vec2 {
+  a.clamp(Vec2::ZERO, Vec2::ONE)
+}
+#[inline(always)]
+pub fn saturate(a: f32) -> f32 {
+  a.clamp(0.0, 1.0)
+}
+
+/// Based on: https://seblagarde.wordpress.com/2014/12/01/inverse-trigonometric-functions-gpu-optimization-for-amd-gcn-architecture/
+#[inline]
+pub fn acos_approx(v: f32) -> f32 {
+  let x = v.abs();
+  let mut res = -0.155972 * x + 1.56467; // p(x)
+  res *= (1.0f32 - x).sqrt();
+
+  if v >= 0.0 {
+    res
+  } else {
+    PI - res
+  }
+}
+
+#[inline(always)]
+pub fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
+  // Scale, bias and saturate x to 0..1 range
+  let x = saturate((x - edge0) / (edge1 - edge0));
+  // Evaluate polynomial
+  x * x * (3.0 - 2.0 * x)
+}
+
+#[inline(always)]
+pub fn mix<X: Copy + Mul<A, Output = X> + Add<Output = X> + Sub<Output = X>, A: Copy>(
+  x: X,
+  y: X,
+  a: A,
+) -> X {
+  x - x * a + y * a
+}
+
+pub trait Clamp {
+  fn clamp(self, min: Self, max: Self) -> Self;
+}
+
+impl Clamp for f32 {
+  #[inline(always)]
+  fn clamp(self, min: Self, max: Self) -> Self {
+    self.max(min).min(max)
+  }
+}
+
+pub trait FloatExt {
+  fn fract_gl(self) -> Self;
+  fn rem_euclid(self, rhs: Self) -> Self;
+  fn sign_gl(self) -> Self;
+  fn step(self, x: Self) -> Self;
+}
+
+impl FloatExt for f32 {
+  #[inline]
+  fn fract_gl(self) -> f32 {
+    self - self.floor()
+  }
+
+  #[inline]
+  fn rem_euclid(self, rhs: f32) -> f32 {
+    let r = self % rhs;
+    if r < 0.0 {
+      r + rhs.abs()
+    } else {
+      r
+    }
+  }
+
+  #[inline]
+  fn sign_gl(self) -> f32 {
+    if self < 0.0 {
+      -1.0
+    } else if self == 0.0 {
+      0.0
+    } else {
+      1.0
+    }
+  }
+
+  #[inline]
+  fn step(self, x: f32) -> f32 {
+    if x < self {
+      0.0
+    } else {
+      1.0
+    }
+  }
+}
+
+pub trait VecExt {
+  fn sin(self) -> Self;
+  fn cos(self) -> Self;
+  fn powf_vec(self, p: Self) -> Self;
+  fn sqrt(self) -> Self;
+  fn ln(self) -> Self;
+  fn step(self, other: Self) -> Self;
+  fn sign_gl(self) -> Self;
+}
+
+impl VecExt for Vec2 {
+  #[inline]
+  fn sin(self) -> Vec2 {
+    vec2(self.x.sin(), self.y.sin())
+  }
+
+  #[inline]
+  fn cos(self) -> Vec2 {
+    vec2(self.x.cos(), self.y.cos())
+  }
+
+  #[inline]
+  fn powf_vec(self, p: Vec2) -> Vec2 {
+    vec2(self.x.powf(p.x), self.y.powf(p.y))
+  }
+
+  #[inline]
+  fn sqrt(self) -> Vec2 {
+    vec2(self.x.sqrt(), self.y.sqrt())
+  }
+
+  #[inline]
+  fn ln(self) -> Vec2 {
+    vec2(self.x.ln(), self.y.ln())
+  }
+
+  #[inline]
+  fn step(self, other: Vec2) -> Vec2 {
+    vec2(self.x.step(other.x), self.y.step(other.y))
+  }
+
+  #[inline]
+  fn sign_gl(self) -> Vec2 {
+    vec2(self.x.sign_gl(), self.y.sign_gl())
+  }
+}
+
+impl VecExt for Vec3 {
+  #[inline]
+  fn sin(self) -> Vec3 {
+    vec3(self.x.sin(), self.y.sin(), self.z.sin())
+  }
+
+  #[inline]
+  fn cos(self) -> Vec3 {
+    vec3(self.x.cos(), self.y.cos(), self.z.cos())
+  }
+
+  #[inline]
+  fn powf_vec(self, p: Vec3) -> Vec3 {
+    vec3(self.x.powf(p.x), self.y.powf(p.y), self.z.powf(p.z))
+  }
+
+  #[inline]
+  fn sqrt(self) -> Vec3 {
+    vec3(self.x.sqrt(), self.y.sqrt(), self.z.sqrt())
+  }
+
+  #[inline]
+  fn ln(self) -> Vec3 {
+    vec3(self.x.ln(), self.y.ln(), self.z.ln())
+  }
+
+  #[inline]
+  fn step(self, other: Vec3) -> Vec3 {
+    vec3(
+      self.x.step(other.x),
+      self.y.step(other.y),
+      self.z.step(other.z),
+    )
+  }
+
+  #[inline]
+  fn sign_gl(self) -> Vec3 {
+    vec3(self.x.sign_gl(), self.y.sign_gl(), self.z.sign_gl())
+  }
+}
+
+impl VecExt for Vec4 {
+  #[inline]
+  fn sin(self) -> Vec4 {
+    vec4(self.x.sin(), self.y.sin(), self.z.sin(), self.w.sin())
+  }
+
+  #[inline]
+  fn cos(self) -> Vec4 {
+    vec4(self.x.cos(), self.y.cos(), self.z.cos(), self.w.cos())
+  }
+
+  #[inline]
+  fn powf_vec(self, p: Vec4) -> Vec4 {
+    vec4(
+      self.x.powf(p.x),
+      self.y.powf(p.y),
+      self.z.powf(p.z),
+      self.w.powf(p.w),
+    )
+  }
+
+  #[inline]
+  fn sqrt(self) -> Vec4 {
+    vec4(self.x.sqrt(), self.y.sqrt(), self.z.sqrt(), self.w.sqrt())
+  }
+
+  #[inline]
+  fn ln(self) -> Vec4 {
+    vec4(self.x.ln(), self.y.ln(), self.z.ln(), self.w.ln())
+  }
+
+  #[inline]
+  fn step(self, other: Vec4) -> Vec4 {
+    vec4(
+      self.x.step(other.x),
+      self.y.step(other.y),
+      self.z.step(other.z),
+      self.w.step(other.w),
+    )
+  }
+
+  #[inline]
+  fn sign_gl(self) -> Vec4 {
+    vec4(
+      self.x.sign_gl(),
+      self.y.sign_gl(),
+      self.z.sign_gl(),
+      self.w.sign_gl(),
+    )
+  }
+}
+
+#[inline(always)]
+pub fn discard() {
+  unsafe { spirv_std::arch::demote_to_helper_invocation() }
 }

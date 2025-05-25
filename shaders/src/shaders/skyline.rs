@@ -153,16 +153,6 @@ fn noise(uv: Vec3) -> f32 {
   )
 }
 
-fn saturate_vec3(a: Vec3) -> Vec3 {
-  a.clamp(Vec3::ZERO, Vec3::ONE)
-}
-fn _saturate_vec2(a: Vec2) -> Vec2 {
-  a.clamp(Vec2::ZERO, Vec2::ONE)
-}
-fn saturate(a: f32) -> f32 {
-  a.clamp(0.0, 1.0)
-}
-
 impl<C0> State<C0> {
   // This function basically is a procedural environment map that makes the sun
   fn get_sun_color_small(&self, ray_dir: Vec3, sun_dir: Vec3) -> Vec3 {

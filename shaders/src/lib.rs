@@ -3,6 +3,7 @@
 pub mod shader_prelude;
 use shader_prelude::*;
 pub mod shaders;
+pub mod shared_data;
 
 #[inline(always)]
 pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {

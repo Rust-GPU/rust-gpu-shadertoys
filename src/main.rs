@@ -1,6 +1,6 @@
 use futures::executor::block_on;
 use ouroboros::self_referencing;
-use shadertoys_shaders::shaders::SHADER_DEFINITIONS;
+use shadertoys_shaders::{shaders::SHADER_DEFINITIONS, shared_data::ShaderConstants};
 use std::{error::Error, time::Instant};
 use wgpu::{self, include_spirv, include_spirv_raw, InstanceDescriptor};
 use winit::{
@@ -135,7 +135,7 @@ impl ShaderToyApp {
       bind_group_layouts: &[],
       push_constant_ranges: &[wgpu::PushConstantRange {
         stages: wgpu::ShaderStages::VERTEX_FRAGMENT,
-        range: 0..std::mem::size_of::<shared::ShaderConstants>() as u32,
+        range: 0..std::mem::size_of::<ShaderConstants>() as u32,
       }],
     });
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -234,7 +234,7 @@ impl ShaderToyApp {
         0.0,
         1.0,
       );
-      let push_constants = shared::ShaderConstants {
+      let push_constants = ShaderConstants {
         width: current_size.width,
         height: current_size.height,
         time: self.start.elapsed().as_secs_f32(),
