@@ -297,7 +297,7 @@ fn sdf_arc_filled(
     }
   }
 
-  SDFValue(sdf_value)
+  SDFValue::new(sdf_value)
 }
 
 /// Computes a circular angular fade-out based on direction from center.
@@ -355,6 +355,11 @@ fn arc_fade_out(
   }
   rel_angle = rel_angle.clamp(0.0, effective_arc_length_angle);
 
+  if opaque_percentage >= 1.0 - EPSILON {
+    // If the opaque percentage is effectively 100%, we return 1.0.
+    return 1.0;
+  }
+
   let norm_angle = rel_angle / effective_arc_length_angle;
 
   let fade_center = fade_center_angle.rem_euclid(TWO_PI);
@@ -401,7 +406,7 @@ fn arc_fade_out(
 /// * `opaque_percentage`: Percentage of the arc that is opaque.
 ///                        The fade starts at the edges of the opaque region.
 ///
-/// Returns a `Vec2` with the first component being the SDF value
+/// Returns a `Vec2` with the first component being the [`SDFValue`] for the arc outline,
 /// and the second component being the fade intensity.
 fn sdf_arc_outline(
   uv: Vec2,
@@ -414,14 +419,6 @@ fn sdf_arc_outline(
   fade_center_angle: f32,
   opaque_percentage: f32,
 ) -> (SDFValue, f32) {
-  let sdf_inner = sdf_arc_filled(
-    uv,
-    center_shape,
-    start_angle,
-    end_angle,
-    spine_radius,
-    inner_radius * 2.0,
-  );
   let sdf_outer = sdf_arc_filled(
     uv,
     center_shape,
@@ -430,8 +427,7 @@ fn sdf_arc_outline(
     spine_radius,
     outer_radius * 2.0,
   );
-  // remove m_inner from m_outer
-  let sdf_value = sdf_outer.difference(sdf_inner);
+  let sdf_value = sdf_outer.to_outline_asym(outer_radius - inner_radius, 0.0);
   let fade_intensity = arc_fade_out(
     uv,
     center_shape,
@@ -445,22 +441,19 @@ fn sdf_arc_outline(
   (sdf_value, fade_intensity)
 }
 
-fn sdf_circle_outline(uv: Vec2, center: Vec2, radius: f32, stroke: f32) -> f32 {
-  // Compute distance from pixel to circle center.
-  let dist = (uv - center).length();
-  // Half stroke for symmetric band.
-  let half_th = stroke * 0.5;
-  // Return 1 if pixel is within the stroke band.
-  (dist - radius).abs().step(half_th)
-}
-
-fn sdf_circle(uv: Vec2, center: Vec2, inner_radius: f32, outer_radius: f32) -> f32 {
-  // Compute distance from pixel to circle center.
-  let dist = (uv - center).length();
-  // Return 1 if pixel is within the stroke band.
-  (dist - inner_radius)
-    .abs()
-    .step(outer_radius - inner_radius)
+/// SDF for a filled circle.
+///
+/// * `uv`: The coordinates relative to the center of the circle.
+/// * `center`: The center of the circle.
+/// * `radius`: The radius of the circle.
+///
+/// Returns the [`SDFValue`] for the circle.
+fn sdf_circle_filled(uv: Vec2, center: Vec2, radius: f32) -> SDFValue {
+  let p = uv - center;
+  let d = p.length() - radius;
+  let outside_distance = d.max(0.0);
+  let inside_distance = d.min(0.0);
+  SDFValue::new(outside_distance + inside_distance)
 }
 
 /// Returns a value along an exponential curve shaped by `c`.
@@ -938,13 +931,13 @@ impl Inputs {
     .position;
     let middle_circle_radius = middle_circle_position.y.abs().max(target_radius);
 
-    let m_middle_circle_position_path = sdf_circle_outline(
+    let m_middle_circle_position_path = sdf_circle_filled(
       uv,
       middle_circle_start_position / 2.0,
       middle_circle_start_radius / 2.0,
-      target_stroke / 2.0,
-    );
-    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_position_path);
+    )
+    .to_outline(target_stroke / 2.0);
+    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_position_path.to_alpha());
 
     let middle_circle_moved_distance =
       (middle_circle_start_position - middle_circle_position).length();
@@ -958,23 +951,17 @@ impl Inputs {
     //middle_circle_position.y -=
     //  (middle_circle_position.y + middle_circle_radius) * (1.0 - t_master);
 
-    let m_start_circle = sdf_circle_outline(uv, Vec2::ZERO, target_radius, target_stroke);
-    debug_red_alpha = debug_red_alpha.max(m_start_circle);
-    let m_middle_circle_path = sdf_circle_outline(
-      uv,
-      middle_circle_start_position,
-      middle_circle_start_radius,
-      target_stroke / 2.0,
-    );
-    debug_red_alpha = debug_red_alpha.max(m_middle_circle_path);
+    let m_start_circle = sdf_circle_filled(uv, Vec2::ZERO, target_radius).to_outline(target_stroke);
+    debug_red_alpha = debug_red_alpha.max(m_start_circle.to_alpha());
+    let m_middle_circle_path =
+      sdf_circle_filled(uv, middle_circle_start_position, middle_circle_start_radius)
+        .to_outline(target_stroke / 2.0);
+    debug_red_alpha = debug_red_alpha.max(m_middle_circle_path.to_alpha());
 
-    let m_middle_circle_outline = sdf_circle_outline(
-      uv,
-      middle_circle_position,
-      middle_circle_radius,
-      target_stroke / 2.0,
-    );
-    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_outline);
+    let m_middle_circle_outline =
+      sdf_circle_filled(uv, middle_circle_position, middle_circle_radius)
+        .to_outline(target_stroke / 2.0);
+    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_outline.to_alpha());
 
     for i in 0..num_circles {
       // Compute the position of the circle based on the angle and radius.
@@ -1002,13 +989,9 @@ impl Inputs {
       black_alpha = black_alpha.max(m.0.to_alpha() * (m.1 + t_assist_circle).min(1.0));
       // * (m.y + 6.0 / 256.0));
 
-      let m = sdf_circle_outline(
-        uv,
-        middle_circle_position,
-        middle_circle_radius,
-        outer_circle_outer_radius * 2.0,
-      );
-      black_alpha = black_alpha.max((smoothstep(0.0, aa_width, m)) * t_assist_circle);
+      let m = sdf_circle_filled(uv, middle_circle_position, middle_circle_radius)
+        .to_outline(outer_circle_outer_radius * 2.0);
+      black_alpha = black_alpha.max(m.to_alpha() * t_assist_circle);
     }
 
     if DEBUG {
@@ -1019,7 +1002,7 @@ impl Inputs {
         PI / 4.0,
         1.0,
         0.1,
-        0.3,
+        0.5,
         -PI / 4.0,
         1.0,
       );
