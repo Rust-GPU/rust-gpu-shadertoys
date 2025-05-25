@@ -32,8 +32,6 @@ pub struct Inputs {
 
 /// Epsilon used for floating-point comparisons.
 const EPSILON: f32 = 1.0e-6;
-/// Anti-aliasing width for edges.
-const AA_WIDTH: f32 = 0.005;
 /// A small constant gap between stacked progress bars.
 const PROGRESS_BAR_GAP: f32 = 0.01;
 
@@ -41,9 +39,9 @@ const PROGRESS_BAR_GAP: f32 = 0.01;
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub struct SDFValue(f32);
 impl SDFValue {
-  const FAR_OUTSIDE: SDFValue = SDFValue(f32::MAX);
-  const FAR_INSIDE: SDFValue = SDFValue(f32::MIN);
-  const SURFACE: SDFValue = SDFValue(0.0);
+  pub const FAR_OUTSIDE: SDFValue = SDFValue(f32::MAX);
+  pub const FAR_INSIDE: SDFValue = SDFValue(f32::MIN);
+  pub const SURFACE: SDFValue = SDFValue(0.0);
 
   /// Creates a new SDFValue.
   #[must_use]
@@ -71,10 +69,14 @@ impl SDFValue {
 
   /// Converts the SDF value to an alpha value for anti-aliasing.
   /// Alpha is 1.0 deep inside, 0.0 deep outside, and smooth in between.
-  /// The transition happens from `AA_WIDTH` (alpha 0) to `-AA_WIDTH` (alpha 1).
+  /// The transition happens from `aa_width` (alpha 0) to `-aa_width` (alpha 1).
   #[must_use]
-  pub fn to_alpha(self) -> f32 {
-    return smoothstep(AA_WIDTH, -AA_WIDTH, self.0);
+  pub fn to_alpha(self, aa_width: f32) -> f32 {
+    if aa_width <= EPSILON {
+      return self.is_inside() as i32 as f32;
+    }
+
+    return smoothstep(aa_width, -aa_width, self.0);
   }
 
   /// Insets the shape by a given thickness.
@@ -486,7 +488,7 @@ fn sdf_circle_filled(uv: Vec2, radius: f32) -> SDFValue {
 /// * `t` should be in `0..1`.
 /// * `c` is usually in `-2..2`.
 #[must_use]
-fn exp_time(t: f32, c: f32) -> f32 {
+pub fn exp_time(t: f32, c: f32) -> f32 {
   let c = c * 10.0;
 
   if c.abs() < EPSILON {
@@ -500,7 +502,7 @@ fn exp_time(t: f32, c: f32) -> f32 {
 
 /// Returns the derivative of the exponential function.
 #[must_use]
-fn exp_time_derivative(t: f32, c: f32) -> f32 {
+pub fn exp_time_derivative(t: f32, c: f32) -> f32 {
   let c = c * 10.0;
 
   if c.abs() < EPSILON {
@@ -513,20 +515,20 @@ fn exp_time_derivative(t: f32, c: f32) -> f32 {
 }
 
 #[must_use]
-fn offset_loop_time(t: f32, offset: f32) -> f32 {
+pub fn offset_loop_time(t: f32, offset: f32) -> f32 {
   // Apply offset
   let offset_t = t + offset;
   // Wrap around to [0, 1]
   return offset_t.rem_euclid(1.0);
 }
 
-struct RotatingCircleResult {
+pub struct RotatingCircleResult {
   position: Vec2,
   angle: f32,
 }
 
 #[must_use]
-fn rotating_discrete_circle(
+pub fn rotating_discrete_circle(
   center: Vec2,
   radius: f32,
   start_angle: f32,
@@ -556,7 +558,7 @@ fn rotating_discrete_circle(
 ///
 /// Returns: `0` before `start_time`, `1` after `end_time`, and a `0..1` ramp between them.
 #[must_use]
-fn remap_time(parent_t: f32, start_time: f32, end_time: f32) -> f32 {
+pub fn remap_time(parent_t: f32, start_time: f32, end_time: f32) -> f32 {
   if start_time >= end_time {
     // If start and end are the same, or invalid order we do an instant step.
     return if parent_t >= start_time { 1.0 } else { 0.0 };
@@ -694,7 +696,7 @@ fn draw_time_bar_discrete(
   let bar_full_potential_width = aspect.x * 2.0;
   let step_width = bar_full_potential_width / steps_f;
   let segment_left_bound = -aspect.x + step_width * fade_start_step;
-  let segment_right_bound = -aspect.x + step_width * fade_end_step + AA_WIDTH;
+  let segment_right_bound = -aspect.x + step_width * fade_end_step;
   if uv.x < segment_left_bound {
     fade_in_percentage = 1.0;
   }
@@ -740,10 +742,10 @@ impl Inputs {
     // Determine the shorter dimension of the screen.
     let shorter_dim = screen_xy.min_element();
 
-    let mut DEBUG = false;
+    let mut debug = false;
     // if mouse is pressed, enable debug mode
     if self.mouse.z > 0.0 {
-      DEBUG = true;
+      debug = true;
     }
 
     let debug_zoom = 10.0;
@@ -752,7 +754,7 @@ impl Inputs {
     let mut debug_zoom = 5.0;
     let mut debug_translate = vec2(0.0, 4.5);
 
-    if !DEBUG {
+    if !debug {
       debug_zoom = 1.0;
       debug_translate = vec2(0.0, 0.0);
     }
@@ -773,13 +775,7 @@ impl Inputs {
 
     let outline_stroke = 0.05; // Width of the outline stroke.
     let m_viewport_rect = sdf_box_filled(uv, aspect).to_outline(outline_stroke);
-    debug_red_alpha = debug_red_alpha.max(m_viewport_rect.to_alpha());
-
-    let center = Vec2::ZERO;
-    let bottom_middle = vec2(0.0, -aspect.y);
-    let top_middle = vec2(0.0, aspect.y);
-    let left_middle = vec2(-aspect.x, 0.0);
-    let right_middle = vec2(aspect.x, 0.0);
+    debug_red_alpha = debug_red_alpha.max(m_viewport_rect.to_alpha(aa_width));
 
     let target_radius = 0.2;
     let target_stroke = 0.05;
@@ -803,26 +799,26 @@ impl Inputs {
     // rotating circles
     let num_circles = 12;
     let angle_between_circles = 2.0 * PI / num_circles as f32;
-    let mut H = 0.0;
+    let mut distance_for_main_circle = 0.0;
     for i in 0..num_circles {
       let circle_angle = angle_between_circles * i as f32;
-      let H_candidate = calculate_initial_distance_for_main_circle_center(
+      let distance_candidate = calculate_initial_distance_for_main_circle_center(
         aspect,
         target_radius + target_stroke / 2.0,
         circle_angle,
       );
-      if let Some(H_candidate) = H_candidate {
-        H = H_candidate.max(H);
+      if let Some(distance_candidate) = distance_candidate {
+        distance_for_main_circle = distance_candidate.max(distance_for_main_circle);
       }
     }
     // move from bottom_middle to center
-    let middle_circle_start_radius = H;
+    let middle_circle_start_radius = distance_for_main_circle;
     let middle_circle_radius =
       mix(middle_circle_start_radius, 0.0, t_master * t_master).max(target_radius);
-    let middle_circle_start_position = Vec2::new(0.0, -H);
+    let middle_circle_start_position = Vec2::new(0.0, -distance_for_main_circle);
 
-    let mut middle_circle_position = mix(middle_circle_start_position, center, t_master);
-    let mut middle_circle_position = rotating_discrete_circle(
+    let middle_circle_position = mix(middle_circle_start_position, Vec2::ZERO, t_master);
+    let middle_circle_position = rotating_discrete_circle(
       middle_circle_start_position / 2.0, // maybe without /2.0
       middle_circle_start_radius / 2.0,
       -t_master * PI, // we only want half the rotation
@@ -837,7 +833,7 @@ impl Inputs {
       middle_circle_start_radius / 2.0,
     )
     .to_outline(target_stroke / 2.0);
-    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_position_path.to_alpha());
+    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_position_path.to_alpha(aa_width));
 
     let middle_circle_moved_distance =
       (middle_circle_start_position - middle_circle_position).length();
@@ -852,18 +848,18 @@ impl Inputs {
     //  (middle_circle_position.y + middle_circle_radius) * (1.0 - t_master);
 
     let m_start_circle = sdf_circle_filled(uv, target_radius).to_outline(target_stroke);
-    debug_red_alpha = debug_red_alpha.max(m_start_circle.to_alpha());
+    debug_red_alpha = debug_red_alpha.max(m_start_circle.to_alpha(aa_width));
     let m_middle_circle_path = sdf_circle_filled(
       uv - middle_circle_start_position,
       middle_circle_start_radius,
     )
     .to_outline(target_stroke / 2.0);
-    debug_red_alpha = debug_red_alpha.max(m_middle_circle_path.to_alpha());
+    debug_red_alpha = debug_red_alpha.max(m_middle_circle_path.to_alpha(aa_width));
 
     let m_middle_circle_outline =
       sdf_circle_filled(uv - middle_circle_position, middle_circle_radius)
         .to_outline(target_stroke / 2.0);
-    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_outline.to_alpha());
+    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_outline.to_alpha(aa_width));
 
     for i in 0..num_circles {
       // Compute the position of the circle based on the angle and radius.
@@ -887,31 +883,22 @@ impl Inputs {
         outer_discrete_circle.angle,
         outer_circle_fade,
       );
-      black_alpha = black_alpha.max(m.0.to_alpha() * (m.1 + t_assist_circle).min(1.0));
+      black_alpha = black_alpha.max(m.0.to_alpha(aa_width) * (m.1 + t_assist_circle).min(1.0));
       // * (m.y + 6.0 / 256.0));
 
       let m = sdf_circle_filled(uv - middle_circle_position, middle_circle_radius)
         .to_outline(outer_circle_outer_radius);
-      black_alpha = black_alpha.max(m.to_alpha() * t_assist_circle);
+      black_alpha = black_alpha.max(m.to_alpha(aa_width) * t_assist_circle);
     }
 
-    if DEBUG {
-      let sdf_arc_test = sdf_arc_outline(
-        uv - center,
-        -PI / 4.0,
-        PI / 4.0,
-        1.0,
-        0.0,
-        0.5,
-        -PI / 4.0,
-        1.0,
-      );
+    if debug && false {
+      let sdf_arc_test = sdf_arc_outline(uv, -PI / 4.0, PI / 4.0, 1.0, 0.0, 0.5, -PI / 4.0, 1.0);
       debug_green_alpha =
-        debug_green_alpha.max(sdf_arc_test.0.offset(0.05).to_alpha() * sdf_arc_test.1);
-      debug_red_alpha = debug_red_alpha.max(sdf_arc_test.0.to_alpha() * sdf_arc_test.1);
+        debug_green_alpha.max(sdf_arc_test.0.offset(0.05).to_alpha(aa_width) * sdf_arc_test.1);
+      debug_red_alpha = debug_red_alpha.max(sdf_arc_test.0.to_alpha(aa_width) * sdf_arc_test.1);
     }
 
-    if !DEBUG {
+    if !debug {
       debug_blue_alpha = 0.0;
       debug_red_alpha = 0.0;
       debug_green_alpha = 0.0;
@@ -925,7 +912,7 @@ impl Inputs {
         t_master,
         0, // index
       );
-      debug_green_alpha = debug_green_alpha.max(m_master_time_bar.to_alpha());
+      debug_green_alpha = debug_green_alpha.max(m_master_time_bar.to_alpha(aa_width));
       let m_master_time_bar = draw_time_bar_discrete(
         uv,
         aspect,
@@ -935,7 +922,7 @@ impl Inputs {
         10,
       );
       debug_green_alpha =
-        debug_green_alpha.max(m_master_time_bar.0.to_alpha() * m_master_time_bar.1);
+        debug_green_alpha.max(m_master_time_bar.0.to_alpha(aa_width) * m_master_time_bar.1);
 
       let m_master_time_offset_bar = sdf_progress_bar(
         uv,
@@ -944,7 +931,7 @@ impl Inputs {
         t_master_offset,
         2, // index
       );
-      debug_red_alpha = debug_red_alpha.max(m_master_time_offset_bar.to_alpha());
+      debug_red_alpha = debug_red_alpha.max(m_master_time_offset_bar.to_alpha(aa_width));
     }
 
     let color_background = Vec4::ONE;
