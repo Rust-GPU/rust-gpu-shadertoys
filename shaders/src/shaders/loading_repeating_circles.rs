@@ -825,16 +825,27 @@ fn draw_time_bar_discrete(
 /// Alpha compositing using "over" operator.
 /// https://en.wikipedia.org/wiki/Alpha_compositing
 fn composite_layers<const N: usize>(overlay_colors: &[Vec4; N]) -> Vec4 {
-  let mut result = Vec4::ZERO;
-  for i in (0..overlay_colors.len()).rev() {
-    let color = overlay_colors[i];
-    let alpha = color.w;
-    if alpha > 0.0 {
-      result = result + (color * alpha * (1.0 - result.w));
-      result.w += alpha * (1.0 - result.w);
+  // Start with a fully opaque black background.
+  let mut color_bg = Vec4::new(0.0, 0.0, 0.0, 1.0);
+  for i in 0..overlay_colors.len() {
+    let color_fg = overlay_colors[i];
+    let color_fg_rgb = color_fg.xyz();
+    let alpha_fg = color_fg.w;
+    if alpha_fg <= 0.0 {
+      continue; // Skip fully transparent layers.
     }
+
+    let color_bg_rgb = color_bg.xyz();
+    let alpha_bg = color_bg.w;
+
+    let alpha_final = alpha_bg + alpha_fg - alpha_bg * alpha_fg;
+
+    // Composite using the "over" operator.
+    color_bg = ((color_fg_rgb * alpha_fg + color_bg_rgb * alpha_bg * (1.0 - alpha_fg))
+      / alpha_final)
+      .extend(alpha_final);
   }
-  return result;
+  return color_bg;
 }
 
 const SHOW_TIME_BAR: bool = true;
@@ -1003,7 +1014,7 @@ impl Inputs {
       // * (m.y + 6.0 / 256.0));
 
       let m = sdf_circle_filled(uv, middle_circle_position, middle_circle_radius)
-        .to_outline(outer_circle_outer_radius * 2.0);
+        .to_outline(outer_circle_outer_radius);
       black_alpha = black_alpha.max(m.to_alpha() * t_assist_circle);
     }
 
