@@ -33,12 +33,18 @@ pub struct Inputs {
 /// Epsilon used for floating-point comparisons.
 const EPSILON: f32 = 1.0e-6;
 /// Anti-aliasing width for edges.
-const AA_WIDTH: f32 = 0.01;
+const AA_WIDTH: f32 = 0.005;
+/// A small constant gap between stacked progress bars.
+const PROGRESS_BAR_GAP: f32 = 0.01;
 
 /// An SDF value that can be negative (inside the shape) or positive (outside the shape).
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
-struct SDFValue(f32);
+pub struct SDFValue(f32);
 impl SDFValue {
+  const FAR_OUTSIDE: SDFValue = SDFValue(f32::MAX);
+  const FAR_INSIDE: SDFValue = SDFValue(f32::MIN);
+  const SURFACE: SDFValue = SDFValue(0.0);
+
   /// Creates a new SDFValue.
   #[must_use]
   pub fn new(value: f32) -> Self {
@@ -252,7 +258,6 @@ fn arc_cap_extension_angle(arc_radius: f32, half_stroke: f32) -> f32 {
 /// SDF for an arc with rounded ends (sausage shape).
 ///
 /// * `uv`: Current pixel coordinate.
-/// * `center_shape`: Center of the arc for the arc spine.
 /// * `start_angle`, `end_angle`: Defines the arc of the spine (in radians).
 ///                               The arc is drawn CCW from `start_angle`.
 /// * `spine_radius`: Radius of the arc spine.
@@ -262,14 +267,12 @@ fn arc_cap_extension_angle(arc_radius: f32, half_stroke: f32) -> f32 {
 #[must_use]
 fn sdf_arc_filled(
   uv: Vec2,
-  center_shape: Vec2,
   start_angle: f32,
   end_angle: f32,
   spine_radius: f32,
   stroke: f32,
 ) -> SDFValue {
   let half_stroke = stroke * 0.5;
-  let p = uv - center_shape;
 
   let mut effective_arc_length_angle = (end_angle - start_angle).rem_euclid(TWO_PI);
 
@@ -284,10 +287,10 @@ fn sdf_arc_filled(
   if effective_arc_length_angle < EPSILON {
     // Case 1: Arc is effectively a point (a single circle)
     let arc_spine_point_local = vec2(start_angle.cos(), start_angle.sin()) * spine_radius;
-    sdf_value = (p - arc_spine_point_local).length() - half_stroke;
+    sdf_value = (uv - arc_spine_point_local).length() - half_stroke;
   } else if (effective_arc_length_angle - TWO_PI).abs() < EPSILON {
     // Case 2: Arc is a full circle (annulus)
-    sdf_value = (p.length() - spine_radius).abs() - half_stroke;
+    sdf_value = (uv.length() - spine_radius).abs() - half_stroke;
   } else {
     // Case 3: Arc is a partial arc (with rounded caps)
     let mid_angle_of_arc = start_angle + effective_arc_length_angle / 2.0;
@@ -296,8 +299,8 @@ fn sdf_arc_filled(
     let cs_rot = rot_angle_for_symmetry.cos();
     let sn_rot = rot_angle_for_symmetry.sin();
 
-    let p_sym_x = p.x * cs_rot - p.y * sn_rot;
-    let p_sym_y = p.x * sn_rot + p.y * cs_rot;
+    let p_sym_x = uv.x * cs_rot - uv.y * sn_rot;
+    let p_sym_y = uv.x * sn_rot + uv.y * cs_rot;
     let p_sym = vec2(p_sym_x, p_sym_y);
 
     let half_arc_span_angle = effective_arc_length_angle / 2.0;
@@ -332,7 +335,6 @@ fn sdf_arc_filled(
 /// Computes a circular angular fade-out based on direction from center.
 ///
 /// * `uv`: Current pixel coordinate.
-/// * `center`: Center of the circular arc.
 /// * `start_angle`, `end_angle`: Defines the arc of the spine (in radians).
 ///                               The arc is drawn CCW from `start_angle`.
 /// * `spine_radius`: The radius of the arc spine.
@@ -347,7 +349,6 @@ fn sdf_arc_filled(
 #[must_use]
 fn arc_fade_out(
   uv: Vec2,
-  center: Vec2,
   start_angle: f32,
   end_angle: f32,
   spine_radius: f32,
@@ -360,7 +361,7 @@ fn arc_fade_out(
   let fade_start_angle = start_angle - cap_extension_angle;
   let fade_end_angle = end_angle + cap_extension_angle;
 
-  let dir = (uv - center).normalize();
+  let dir = uv.normalize();
   let mut angle = dir.y.atan2(dir.x);
   if angle < 0.0 {
     angle += TWO_PI;
@@ -425,7 +426,6 @@ fn arc_fade_out(
 /// SDF for an arc outline with rounded ends.
 ///
 /// * `uv`: Current pixel coordinate.
-/// * `center_shape`: Center of the arc for the arc spine.
 /// * `start_angle`, `end_angle`: Defines the arc of the spine (in radians).
 ///                               The arc is drawn CCW from `start_angle`.
 /// * `spine_radius`: Radius of the arc spine.
@@ -436,12 +436,11 @@ fn arc_fade_out(
 /// * `opaque_percentage`: Percentage of the arc that is opaque.
 ///                        The fade starts at the edges of the opaque region.
 ///
-/// Returns a `Vec2` with the first component being the [`SDFValue`] for the arc outline,
+/// Returns a tuple with the first component being the [`SDFValue`] for the arc outline,
 /// and the second component being the fade intensity.
 #[must_use]
 fn sdf_arc_outline(
   uv: Vec2,
-  center_shape: Vec2,
   start_angle: f32,
   end_angle: f32,
   spine_radius: f32,
@@ -450,20 +449,12 @@ fn sdf_arc_outline(
   fade_center_angle: f32,
   opaque_percentage: f32,
 ) -> (SDFValue, f32) {
-  let mut sdf_value = sdf_arc_filled(
-    uv,
-    center_shape,
-    start_angle,
-    end_angle,
-    spine_radius,
-    outer_radius * 2.0,
-  );
+  let mut sdf_value = sdf_arc_filled(uv, start_angle, end_angle, spine_radius, outer_radius * 2.0);
   if inner_radius > EPSILON {
     sdf_value = sdf_value.inset(outer_radius - inner_radius);
   }
   let fade_intensity = arc_fade_out(
     uv,
-    center_shape,
     start_angle,
     end_angle,
     spine_radius,
@@ -477,14 +468,12 @@ fn sdf_arc_outline(
 /// SDF for a filled circle.
 ///
 /// * `uv`: The coordinates relative to the center of the circle.
-/// * `center`: The center of the circle.
 /// * `radius`: The radius of the circle.
 ///
 /// Returns the [`SDFValue`] for the circle.
 #[must_use]
-fn sdf_circle_filled(uv: Vec2, center: Vec2, radius: f32) -> SDFValue {
-  let p = uv - center;
-  let d = p.length() - radius;
+fn sdf_circle_filled(uv: Vec2, radius: f32) -> SDFValue {
+  let d = uv.length() - radius;
   let outside_distance = d.max(0.0);
   let inside_distance = d.min(0.0);
   SDFValue::new(outside_distance + inside_distance)
@@ -576,97 +565,63 @@ fn remap_time(parent_t: f32, start_time: f32, end_time: f32) -> f32 {
   return ((parent_t - start_time) / duration).clamp(0.0, 1.0);
 }
 
-#[repr(u32)]
 #[derive(Copy, Clone)]
-enum Positioning {
-  Centered,
-  TopLeft,
-  TopRight,
-  BottomLeft,
-  BottomRight,
+pub struct Rectangle {
+  pub position: Vec2,
+  pub half_dimensions: Vec2,
+}
+impl Rectangle {
+  /// Creates a new rectangle centred on the given position and with the given half-dimensions.
+  #[must_use]
+  pub fn new(position: Vec2, half_dimensions: Vec2) -> Self {
+    Rectangle {
+      position,
+      half_dimensions,
+    }
+  }
+
+  #[must_use]
+  pub fn is_inside(&self, uv: Vec2) -> bool {
+    let relative_uv = uv - self.position;
+    relative_uv.x.abs() <= self.half_dimensions.x && relative_uv.y.abs() <= self.half_dimensions.y
+  }
+
+  /// Returns the SDF value for this rectangle at the given UV coordinates.
+  #[must_use]
+  pub fn sdf_box_filled(&self, uv: Vec2) -> SDFValue {
+    sdf_box_filled(uv - self.position, self.half_dimensions)
+  }
 }
 
 /// SDF for a filled box.
 ///
 /// * `uv`: The coordinates relative to the center of the box.
-/// * `center`: The center of the box.
 /// * `positioning`: How the box is positioned relative to `uv`.
 /// * `half_dimensions`: half-width and half-height of the box.
 ///
-/// Returns the signed distance from the box.
+/// Returns the [`SDFValue`] for the box.
 #[must_use]
-fn sdf_box_filled(uv: Vec2, center: Vec2, positioning: Positioning, half_dimensions: Vec2) -> f32 {
-  let actual_box_center = match positioning {
-    Positioning::Centered => center,
-    Positioning::TopLeft => Vec2::new(center.x + half_dimensions.x, center.y - half_dimensions.y),
-    Positioning::TopRight => Vec2::new(center.x - half_dimensions.x, center.y - half_dimensions.y),
-    Positioning::BottomLeft => {
-      Vec2::new(center.x + half_dimensions.x, center.y + half_dimensions.y)
-    },
-    Positioning::BottomRight => {
-      Vec2::new(center.x - half_dimensions.x, center.y + half_dimensions.y)
-    },
-  };
-
-  let p = uv - actual_box_center;
-  let d = p.abs() - half_dimensions;
+fn sdf_box_filled(uv: Vec2, half_dimensions: Vec2) -> SDFValue {
+  let d = uv.abs() - half_dimensions;
   let outside_distance = d.max(Vec2::ZERO).length();
   let inside_distance = d.x.max(d.y).min(0.0);
 
-  outside_distance + inside_distance
+  SDFValue::new(outside_distance + inside_distance)
 }
 
-/// Draws the outline of a rectangle using the signed distance function.
-///
-/// * `uv`: The coordinates relative to the center of the rectangle.
-/// * `center`: The center of the box.
-/// * `positioning`: How the box is positioned relative to `uv`.
-/// * `half_dimensions`: half-width and half-height of the box.
-/// * `stroke`: This parameter will define the width of the outline.
-///
-/// Returns the signed distance from the rectangle outline.
-#[must_use]
-fn sdf_box_outline(
-  uv: Vec2,
-  center: Vec2,
-  positioning: Positioning,
-  half_dimensions: Vec2,
-  stroke: f32,
-) -> f32 {
-  let distance_to_filled_box = sdf_box_filled(uv, center, positioning, half_dimensions);
-
-  let half_stroke = stroke * 0.5;
-
-  let distance_to_outline = distance_to_filled_box.abs() - half_stroke;
-
-  distance_to_outline
-}
-
-/// Draws a filled progress bar rectangle based on time `t`.
-/// This is a simplified version focusing on a basic filled rectangle.
+/// SDF for a progress bar rectangle.
 /// Bars are stacked downwards from the top of the screen.
-/// `uv`: coordinates relative to the center of the screen.
-/// `aspect`: half-dimensions of the screen (half-width, half-height), e.g., (aspect_ratio, 1.0) or (1.0, 1.0/aspect_ratio).
-/// `stroke`: This parameter will define the height of the time bar.
-/// `aa_width`: width for anti-aliasing smooth transitions at the edges of the bar.
-/// `t`: progress of the bar, from 0.0 (empty) to 1.0 (full).
-/// `index`: vertical stacking index of the bar. Index 0 is the top-most bar.
-/// Returns an alpha value (0.0 to 1.0) for the pixel, representing the bar's visibility.
+///
+/// * `uv`: coordinates relative to the center of the screen.
+/// * `aspect`: half-dimensions of the screen (half-width, half-height).
+/// * `stroke`: This parameter will define the height of the time bar.
+/// * `progress`: progress of the bar, from `0.0` (empty) to `1.0` (full).
+/// * `index`: vertical stacking index of the bar. Index 0 is the top-most bar.
+///
+/// Returns the [`SDFValue`] for the progress bar.
 #[must_use]
-fn draw_time_bar(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32, t: f32, index: u32) -> f32 {
-  // --- Bar Configuration ---
-  // The `stroke` argument is interpreted as the desired height of the bar.
+fn sdf_progress_bar(uv: Vec2, aspect: Vec2, stroke: f32, progress: f32, index: u32) -> SDFValue {
   let bar_height = stroke;
-
-  // If the bar height is non-positive, it's invisible.
-  if bar_height <= 0.0 {
-    return 0.0;
-  }
-
-  // A small constant gap between stacked bars.
-  const INTER_BAR_CONSTANT_GAP: f32 = 0.01; // Normalized screen units.
-
-  // --- Bar Dimensions & Position ---
   // The bar spans the full width of the viewport.
   let bar_full_potential_width = aspect.x * 2.0;
 
@@ -674,21 +629,11 @@ fn draw_time_bar(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32, t: f32, ind
   // `index = 0` is the top-most bar.
   // `aspect.y` is the Y-coordinate of the top edge of the screen.
   // Each subsequent bar (`index > 0`) is placed below the previous one.
-  let bar_top_edge_y = aspect.y - (index as f32) * (bar_height + INTER_BAR_CONSTANT_GAP);
+  let bar_top_edge_y = aspect.y - (index as f32) * (bar_height + PROGRESS_BAR_GAP);
   let bar_vertical_center_y = bar_top_edge_y - bar_height / 2.0;
 
-  // --- Fill Calculation ---
-  // Clamp progress `t` to the [0, 1] range.
-  let t_clamped = t.clamp(0.0, 1.0);
-
   // Calculate the current width of the filled portion of the bar.
-  let current_filled_width = bar_full_potential_width * t_clamped;
-
-  // If the bar is too thin to be rendered meaningfully (thinner than anti-aliasing width),
-  // treat it as invisible to prevent rendering artifacts.
-  if current_filled_width < aa_width || bar_height < aa_width {
-    return 0.0;
-  }
+  let current_filled_width = bar_full_potential_width * progress;
 
   // The filled portion of the bar starts from the left screen edge (`-aspect.x`).
   // Calculate the X-coordinate of the center of this filled portion.
@@ -704,152 +649,60 @@ fn draw_time_bar(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32, t: f32, ind
 
   // Calculate the signed distance to the boundary of the filled rectangle.
   // `sd_box` returns < 0 inside, 0 on boundary, > 0 outside.
-  let distance_to_fill_boundary = sdf_box_filled(
-    uv_relative_to_fill_rect_center,
-    Vec2::ZERO,
-    Positioning::Centered,
-    fill_rect_half_dims,
-  );
+  let distance_to_fill_boundary =
+    sdf_box_filled(uv_relative_to_fill_rect_center, fill_rect_half_dims);
 
-  // Use `smoothstep` to create a smooth transition (anti-aliasing) at the edges.
-  // `smoothstep(edge0, edge1, x)`:
-  // Here, `edge0 = aa_width`, `edge1 = -aa_width`.
-  // If `distance_to_fill_boundary` is less than `-aa_width` (deep inside), alpha is 1.0.
-  // If `distance_to_fill_boundary` is greater than `aa_width` (far outside), alpha is 0.0.
-  // Transition occurs between `-aa_width` and `aa_width`.
-  let alpha = smoothstep(aa_width, -aa_width, distance_to_fill_boundary);
-
-  alpha
+  distance_to_fill_boundary
 }
 
 /// Draws a filled progress bar rectangle that fills in discrete steps,
 /// with new steps fading in.
 /// Bars are stacked downwards from the top of the screen.
-/// `uv`: coordinates relative to the center of the screen.
-/// `aspect`: half-dimensions of the screen (half-width, half-height).
-/// `stroke`: This parameter will define the height of the time bar.
-/// `aa_width`: width for anti-aliasing smooth transitions at the edges of the bar.
-/// `t`: overall progress of the bar, from 0.0 (empty) to 1.0 (full).
-/// `index`: vertical stacking index of the bar. Index 0 is the top-most bar.
-/// `steps`: the number of discrete steps the bar fills in. If 0, bar is invisible. If 1, bar fades in fully.
-/// Returns an alpha value (0.0 to 1.0) for the pixel, representing the bar's visibility.
+///
+/// * `uv`: coordinates relative to the center of the screen.
+/// * `aspect`: half-dimensions of the screen (half-width, half-height).
+/// * `stroke`: This parameter will define the height of the time bar.
+/// * `progress`: overall progress of the bar, from 0.0 (empty) to 1.0 (full).
+/// * `index`: vertical stacking index of the bar. Index 0 is the top-most bar.
+/// * `steps`: the number of discrete steps the bar fills in. If 0, bar is invisible. If 1, bar fades in fully.
+///
+/// Returns a tuple with the first component being the [`SDFValue`] for the progress bar,
+/// and the second component being the fade intensity (`0.0..1.0`).
 #[must_use]
 fn draw_time_bar_discrete(
   uv: Vec2,
   aspect: Vec2,
   stroke: f32,
-  aa_width: f32,
-  t: f32, // Overall progress
+  progress: f32,
   index: u32,
   steps: u32,
-) -> f32 {
-  // --- Basic Validations ---
-  // If bar has no height or no steps, it's invisible.
-  if stroke <= 0.0 || steps == 0 {
-    return 0.0;
+) -> (SDFValue, f32) {
+  if steps == 0 {
+    return (SDFValue::FAR_OUTSIDE, 0.0);
   }
 
-  // --- Bar Configuration ---
-  let bar_height = stroke;
-  // Consistent gap with draw_time_bar if used together.
-  const INTER_BAR_CONSTANT_GAP: f32 = 0.01; // Normalized screen units.
+  let steps_f = steps as f32;
+  // Determine how many steps should be visible, fractionally.
+  // e.g., progress=0.75, steps=2 -> target_step_float = 1.5 (1 full, 1 half-faded)
+  let target_step_float = progress * steps_f;
+  let fade_start_step = target_step_float.floor();
+  let fade_end_step = fade_start_step + 1.0;
+  let mut fade_in_percentage = target_step_float.fract();
 
-  // --- Bar Dimensions & Position ---
-  // Bar spans the full potential width of the viewport.
+  let sdf_value = sdf_progress_bar(uv, aspect, stroke, fade_end_step / steps_f, index);
+
   let bar_full_potential_width = aspect.x * 2.0;
-  // Calculate vertical position of the bar.
-  let bar_top_edge_y = aspect.y - (index as f32) * (bar_height + INTER_BAR_CONSTANT_GAP);
-  let bar_vertical_center_y = bar_top_edge_y - bar_height / 2.0;
-
-  // --- Progress Calculation ---
-  // Clamp overall progress `t` to the [0, 1] range.
-  let t_clamped = t.clamp(0.0, 1.0);
-
-  // If progress is effectively zero, bar is invisible.
-  if t_clamped <= EPSILON {
-    return 0.0;
+  let step_width = bar_full_potential_width / steps_f;
+  let segment_left_bound = -aspect.x + step_width * fade_start_step;
+  let segment_right_bound = -aspect.x + step_width * fade_end_step + AA_WIDTH;
+  if uv.x < segment_left_bound {
+    fade_in_percentage = 1.0;
+  }
+  if uv.x > segment_right_bound {
+    fade_in_percentage = 0.0;
   }
 
-  // Calculate the render width of a single discrete step.
-  let single_step_render_width = bar_full_potential_width / steps as f32;
-
-  // Convert overall progress `t_clamped` into step-based progress.
-  // e.g., t_clamped=0.6, steps=4 -> progress_in_num_steps=2.4
-  // This means 2 steps are fully complete, and the 3rd step is 40% through its fade-in.
-  let progress_in_num_steps = t_clamped * steps as f32;
-
-  // Number of fully completed (solid) segments.
-  // For progress_in_num_steps=2.4, num_solid_segments=2.
-  let num_solid_segments = progress_in_num_steps.floor() as u32;
-
-  // Fractional progress within the current fading-in segment (0.0 to ~1.0).
-  // For progress_in_num_steps=2.4, current_segment_fade_progress=0.4.
-  // This value determines the alpha of the fading segment.
-  let current_segment_fade_progress = progress_in_num_steps.fract();
-
-  let mut final_alpha: f32 = 0.0;
-
-  // --- 1. Draw Fully Completed (Solid) Segments ---
-  if num_solid_segments > 0 {
-    let solid_part_width = num_solid_segments as f32 * single_step_render_width;
-
-    // Ensure the solid part has a positive width to render.
-    if solid_part_width > EPSILON {
-      let solid_rect_half_dims = vec2(solid_part_width * 0.5, bar_height * 0.5);
-      // Solid part starts at left edge (-aspect.x) and extends by solid_part_width.
-      let solid_rect_center_x = -aspect.x + solid_part_width * 0.5;
-      let solid_rect_center_pos = vec2(solid_rect_center_x, bar_vertical_center_y);
-
-      // Calculate SDF for the solid part.
-      let dist_to_solid_boundary = sdf_box_filled(
-        uv,
-        solid_rect_center_pos,
-        Positioning::Centered,
-        solid_rect_half_dims,
-      );
-      // Apply anti-aliasing.
-      let alpha_solid_part = smoothstep(aa_width, -aa_width, dist_to_solid_boundary);
-      final_alpha = final_alpha.max(alpha_solid_part);
-    }
-  }
-
-  // --- 2. Draw the Currently Fading-In Segment ---
-  // This segment is drawn if:
-  //   a) Not all steps are already solid (num_solid_segments < steps).
-  //   b) There's some progress into this new segment (current_segment_fade_progress > EPSILON).
-  if num_solid_segments < steps && current_segment_fade_progress > EPSILON {
-    // The fading segment starts where the solid segments (if any) ended.
-    let fading_segment_start_x = -aspect.x + (num_solid_segments as f32 * single_step_render_width);
-
-    let fading_rect_half_dims = vec2(single_step_render_width * 0.5, bar_height * 0.5);
-    // Center of this single fading segment.
-    let fading_rect_center_x = fading_segment_start_x + single_step_render_width * 0.5;
-    let fading_rect_center_pos = vec2(fading_rect_center_x, bar_vertical_center_y);
-
-    // Calculate SDF for the shape of the fading segment.
-    let dist_to_fading_boundary = sdf_box_filled(
-      uv,
-      fading_rect_center_pos,
-      Positioning::Centered,
-      fading_rect_half_dims,
-    );
-    // Base alpha for the shape with anti-aliasing.
-    let base_alpha_fading_shape = smoothstep(aa_width, -aa_width, dist_to_fading_boundary);
-
-    // Modulate shape alpha by the fade-in progress.
-    let alpha_fading_part = base_alpha_fading_shape * current_segment_fade_progress;
-    final_alpha = final_alpha.max(alpha_fading_part);
-  }
-
-  // Edge case: t_clamped = 1.0 (fully complete)
-  // - progress_in_num_steps = steps as f32
-  // - num_solid_segments = steps
-  // - current_segment_fade_progress = 0.0 (or very close to 0 due to precision)
-  // Solid part: Draws all 'steps' segments fully.
-  // Fading part: Condition 'num_solid_segments < steps' is false, so it's skipped.
-  // Result: The entire bar is solid, which is correct.
-
-  final_alpha
+  (sdf_value, fade_in_percentage)
 }
 
 /// Alpha compositing using "over" operator.
@@ -919,14 +772,8 @@ impl Inputs {
     let mut debug_green_alpha: f32 = 0.0;
 
     let outline_stroke = 0.05; // Width of the outline stroke.
-    let m_viewport_rect = sdf_box_outline(
-      uv,
-      Vec2::ZERO,
-      Positioning::Centered,
-      aspect,
-      outline_stroke,
-    );
-    debug_red_alpha = debug_red_alpha.max(1.0 - smoothstep(0.0, aa_width, m_viewport_rect));
+    let m_viewport_rect = sdf_box_filled(uv, aspect).to_outline(outline_stroke);
+    debug_red_alpha = debug_red_alpha.max(m_viewport_rect.to_alpha());
 
     let center = Vec2::ZERO;
     let bottom_middle = vec2(0.0, -aspect.y);
@@ -986,8 +833,7 @@ impl Inputs {
     let middle_circle_radius = middle_circle_position.y.abs().max(target_radius);
 
     let m_middle_circle_position_path = sdf_circle_filled(
-      uv,
-      middle_circle_start_position / 2.0,
+      uv - (middle_circle_start_position / 2.0),
       middle_circle_start_radius / 2.0,
     )
     .to_outline(target_stroke / 2.0);
@@ -1005,15 +851,17 @@ impl Inputs {
     //middle_circle_position.y -=
     //  (middle_circle_position.y + middle_circle_radius) * (1.0 - t_master);
 
-    let m_start_circle = sdf_circle_filled(uv, Vec2::ZERO, target_radius).to_outline(target_stroke);
+    let m_start_circle = sdf_circle_filled(uv, target_radius).to_outline(target_stroke);
     debug_red_alpha = debug_red_alpha.max(m_start_circle.to_alpha());
-    let m_middle_circle_path =
-      sdf_circle_filled(uv, middle_circle_start_position, middle_circle_start_radius)
-        .to_outline(target_stroke / 2.0);
+    let m_middle_circle_path = sdf_circle_filled(
+      uv - middle_circle_start_position,
+      middle_circle_start_radius,
+    )
+    .to_outline(target_stroke / 2.0);
     debug_red_alpha = debug_red_alpha.max(m_middle_circle_path.to_alpha());
 
     let m_middle_circle_outline =
-      sdf_circle_filled(uv, middle_circle_position, middle_circle_radius)
+      sdf_circle_filled(uv - middle_circle_position, middle_circle_radius)
         .to_outline(target_stroke / 2.0);
     debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_outline.to_alpha());
 
@@ -1030,8 +878,7 @@ impl Inputs {
       let outer_circle_inner_radius = (outer_circle_outer_radius - target_stroke / 2.0).max(0.0);
       let outer_circle_outer_radius = outer_circle_outer_radius + target_stroke / 2.0;
       let m = sdf_arc_outline(
-        uv,
-        middle_circle_position,
+        uv - middle_circle_position,
         outer_discrete_circle.angle - trail_angular_extent / 2.0,
         outer_discrete_circle.angle + trail_angular_extent / 2.0,
         middle_circle_radius,
@@ -1043,15 +890,14 @@ impl Inputs {
       black_alpha = black_alpha.max(m.0.to_alpha() * (m.1 + t_assist_circle).min(1.0));
       // * (m.y + 6.0 / 256.0));
 
-      let m = sdf_circle_filled(uv, middle_circle_position, middle_circle_radius)
+      let m = sdf_circle_filled(uv - middle_circle_position, middle_circle_radius)
         .to_outline(outer_circle_outer_radius);
       black_alpha = black_alpha.max(m.to_alpha() * t_assist_circle);
     }
 
     if DEBUG {
       let sdf_arc_test = sdf_arc_outline(
-        uv,
-        center,
+        uv - center,
         -PI / 4.0,
         PI / 4.0,
         1.0,
@@ -1072,35 +918,33 @@ impl Inputs {
     }
 
     if SHOW_TIME_BAR {
-      let m_master_time_bar = draw_time_bar(
+      let m_master_time_bar = sdf_progress_bar(
         uv,
         aspect,
         target_stroke,
-        aa_width,
         t_master,
         0, // index
       );
-      debug_green_alpha = debug_green_alpha.max(m_master_time_bar);
+      debug_green_alpha = debug_green_alpha.max(m_master_time_bar.to_alpha());
       let m_master_time_bar = draw_time_bar_discrete(
         uv,
         aspect,
         target_stroke,
-        aa_width,
         t_master,
         1, // index
         10,
       );
-      debug_green_alpha = debug_green_alpha.max(m_master_time_bar);
+      debug_green_alpha =
+        debug_green_alpha.max(m_master_time_bar.0.to_alpha() * m_master_time_bar.1);
 
-      let m_master_time_offset_bar = draw_time_bar(
+      let m_master_time_offset_bar = sdf_progress_bar(
         uv,
         aspect,
         target_stroke,
-        aa_width,
         t_master_offset,
         2, // index
       );
-      debug_red_alpha = debug_red_alpha.max(m_master_time_offset_bar);
+      debug_red_alpha = debug_red_alpha.max(m_master_time_offset_bar.to_alpha());
     }
 
     let color_background = Vec4::ONE;
