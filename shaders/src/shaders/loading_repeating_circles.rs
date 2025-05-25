@@ -66,35 +66,48 @@ impl SDFValue {
     return smoothstep(AA_WIDTH, -AA_WIDTH, self.0);
   }
 
-  /// Creates an outline (hollow shape) from the SDF.
-  ///
-  /// * `inner_thickness`: how much to expand inwards to form the inner boundary of the outline.
-  /// * `outer_thickness`: how much to expand outwards to form the outer boundary of the outline.
-  ///
-  /// The resulting SDF is negative *inside the outline material*.
-  pub fn to_outline_asym(self, inner_thickness: f32, outer_thickness: f32) -> SDFValue {
-    return SDFValue((self.0 - outer_thickness).max(-(self.0 + inner_thickness)));
+  /// Insets the shape by a given thickness.
+  /// This is done by shrinking the shape and then calculating the difference.
+  pub fn inset(self, amount: f32) -> Self {
+    Self(self.0.max(-(self.0 + amount)))
+  }
+
+  /// Expands (if amount > 0) or shrinks (if amount < 0) the shape.
+  /// This is equivalent to subtracting from the distance value.
+  pub fn offset(&self, amount: f32) -> Self {
+    Self(self.0 - amount)
+  }
+
+  /// Takes the absolute value of the SDF, effectively creating an infinitely thin shell
+  /// on the surface of the original shape.
+  pub fn shell(self) -> Self {
+    Self(self.0.abs())
   }
 
   /// Creates an outline (hollow shape) from the SDF.
-  pub fn to_outline(self, thickness: f32) -> SDFValue {
-    SDFValue(self.0.abs() - thickness)
+  pub fn to_outline(self, thickness: f32) -> Self {
+    Self(self.0.abs() - thickness)
   }
 
   /// Difference operation (self - other). Result is inside if inside self AND outside other.
   /// Equivalent to Intersection(self, Invert(other)).
-  pub fn difference(self, other: SDFValue) -> SDFValue {
-    SDFValue(self.0.max(-other.0))
+  pub fn difference(self, other: Self) -> Self {
+    Self(self.0.max(-other.0))
   }
 
   /// Union operation (self U other). Result is inside if inside self OR inside other.
-  pub fn union(self, other: SDFValue) -> SDFValue {
-    SDFValue(self.0.min(other.0))
+  pub fn union(self, other: Self) -> Self {
+    Self(self.0.min(other.0))
   }
 
   /// Intersection operation (self ∩ other). Result is inside if inside self AND inside other.
-  pub fn intersection(self, other: SDFValue) -> SDFValue {
-    SDFValue(self.0.max(other.0))
+  pub fn intersection(self, other: Self) -> Self {
+    Self(self.0.max(other.0))
+  }
+
+  /// Inverts the SDF (inside becomes outside and vice-versa).
+  pub fn invert(self) -> Self {
+    Self(-self.0)
   }
 }
 
@@ -427,7 +440,7 @@ fn sdf_arc_outline(
     spine_radius,
     outer_radius * 2.0,
   );
-  let sdf_value = sdf_outer.to_outline_asym(outer_radius - inner_radius, 0.0);
+  let sdf_value = sdf_outer.inset(outer_radius - inner_radius);
   let fade_intensity = arc_fade_out(
     uv,
     center_shape,
@@ -1006,7 +1019,9 @@ impl Inputs {
         -PI / 4.0,
         1.0,
       );
-      debug_green_alpha = debug_green_alpha.max(sdf_arc_test.0.to_alpha() * sdf_arc_test.1);
+      debug_green_alpha =
+        debug_green_alpha.max(sdf_arc_test.0.offset(0.05).to_alpha() * sdf_arc_test.1);
+      debug_red_alpha = debug_red_alpha.max(sdf_arc_test.0.to_alpha() * sdf_arc_test.1);
     }
 
     if !DEBUG {
