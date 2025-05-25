@@ -62,20 +62,24 @@ pub struct ShaderDefinition {
 }
 
 #[inline(always)]
+#[must_use]
 pub fn saturate_vec3(a: Vec3) -> Vec3 {
   a.clamp(Vec3::ZERO, Vec3::ONE)
 }
 #[inline(always)]
+#[must_use]
 pub fn saturate_vec2(a: Vec2) -> Vec2 {
   a.clamp(Vec2::ZERO, Vec2::ONE)
 }
 #[inline(always)]
+#[must_use]
 pub fn saturate(a: f32) -> f32 {
   a.clamp(0.0, 1.0)
 }
 
 /// Based on: https://seblagarde.wordpress.com/2014/12/01/inverse-trigonometric-functions-gpu-optimization-for-amd-gcn-architecture/
 #[inline]
+#[must_use]
 pub fn acos_approx(v: f32) -> f32 {
   let x = v.abs();
   let mut res = -0.155972 * x + 1.56467; // p(x)
@@ -89,6 +93,7 @@ pub fn acos_approx(v: f32) -> f32 {
 }
 
 #[inline(always)]
+#[must_use]
 pub fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
   // Scale, bias and saturate x to 0..1 range
   let x = saturate((x - edge0) / (edge1 - edge0));
@@ -97,6 +102,7 @@ pub fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 }
 
 #[inline(always)]
+#[must_use]
 pub fn mix<X: Copy + Mul<A, Output = X> + Add<Output = X> + Sub<Output = X>, A: Copy>(
   x: X,
   y: X,
@@ -106,6 +112,7 @@ pub fn mix<X: Copy + Mul<A, Output = X> + Add<Output = X> + Sub<Output = X>, A: 
 }
 
 pub trait Clamp {
+  #[must_use]
   fn clamp(self, min: Self, max: Self) -> Self;
 }
 
@@ -117,9 +124,13 @@ impl Clamp for f32 {
 }
 
 pub trait FloatExt {
+  #[must_use]
   fn fract_gl(self) -> Self;
+  #[must_use]
   fn rem_euclid(self, rhs: Self) -> Self;
+  #[must_use]
   fn sign_gl(self) -> Self;
+  #[must_use]
   fn step(self, x: Self) -> Self;
 }
 
@@ -161,12 +172,19 @@ impl FloatExt for f32 {
 }
 
 pub trait VecExt {
+  #[must_use]
   fn sin(self) -> Self;
+  #[must_use]
   fn cos(self) -> Self;
+  #[must_use]
   fn powf_vec(self, p: Self) -> Self;
+  #[must_use]
   fn sqrt(self) -> Self;
+  #[must_use]
   fn ln(self) -> Self;
+  #[must_use]
   fn step(self, other: Self) -> Self;
+  #[must_use]
   fn sign_gl(self) -> Self;
 }
 

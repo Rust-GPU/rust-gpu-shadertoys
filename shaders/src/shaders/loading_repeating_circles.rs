@@ -40,21 +40,25 @@ const AA_WIDTH: f32 = 0.01;
 struct SDFValue(f32);
 impl SDFValue {
   /// Creates a new SDFValue.
+  #[must_use]
   pub fn new(value: f32) -> Self {
     SDFValue(value)
   }
 
   /// Returns the raw f32 distance.
+  #[must_use]
   pub fn value(self) -> f32 {
     self.0
   }
 
   /// Returns `true` if the SDF value is inside the shape (negative).
+  #[must_use]
   pub fn is_inside(self) -> bool {
     self.0 < 0.0
   }
 
   /// Returns `true` if the SDF value is outside the shape (positive).
+  #[must_use]
   pub fn is_outside(self) -> bool {
     self.0 > 0.0
   }
@@ -62,50 +66,59 @@ impl SDFValue {
   /// Converts the SDF value to an alpha value for anti-aliasing.
   /// Alpha is 1.0 deep inside, 0.0 deep outside, and smooth in between.
   /// The transition happens from `AA_WIDTH` (alpha 0) to `-AA_WIDTH` (alpha 1).
+  #[must_use]
   pub fn to_alpha(self) -> f32 {
     return smoothstep(AA_WIDTH, -AA_WIDTH, self.0);
   }
 
   /// Insets the shape by a given thickness.
   /// This is done by shrinking the shape and then calculating the difference.
+  #[must_use]
   pub fn inset(self, amount: f32) -> Self {
     Self(self.0.max(-(self.0 + amount)))
   }
 
   /// Expands (if amount > 0) or shrinks (if amount < 0) the shape.
   /// This is equivalent to subtracting from the distance value.
+  #[must_use]
   pub fn offset(&self, amount: f32) -> Self {
     Self(self.0 - amount)
   }
 
   /// Takes the absolute value of the SDF, effectively creating an infinitely thin shell
   /// on the surface of the original shape.
+  #[must_use]
   pub fn shell(self) -> Self {
     Self(self.0.abs())
   }
 
   /// Creates an outline (hollow shape) from the SDF.
+  #[must_use]
   pub fn to_outline(self, thickness: f32) -> Self {
     Self(self.0.abs() - thickness)
   }
 
   /// Difference operation (self - other). Result is inside if inside self AND outside other.
   /// Equivalent to Intersection(self, Invert(other)).
+  #[must_use]
   pub fn difference(self, other: Self) -> Self {
     Self(self.0.max(-other.0))
   }
 
   /// Union operation (self U other). Result is inside if inside self OR inside other.
+  #[must_use]
   pub fn union(self, other: Self) -> Self {
     Self(self.0.min(other.0))
   }
 
   /// Intersection operation (self ∩ other). Result is inside if inside self AND inside other.
+  #[must_use]
   pub fn intersection(self, other: Self) -> Self {
     Self(self.0.max(other.0))
   }
 
   /// Inverts the SDF (inside becomes outside and vice-versa).
+  #[must_use]
   pub fn invert(self) -> Self {
     Self(-self.0)
   }
@@ -113,6 +126,7 @@ impl SDFValue {
 
 /// Calculates the distance from the origin to the center of the initial main circle so that
 /// at time `0`, only one border circle is visible, with the others just touching the sides/bottom of the viewport.
+#[must_use]
 fn calculate_initial_distance_for_main_circle_center(
   aspect: Vec2,
   border_circle_radius: f32,
@@ -213,6 +227,7 @@ fn calculate_initial_distance_for_main_circle_center(
 
 /// Given an arc radius and its half-stroke width,
 /// this function computes the angle that the arc extends beyond its endpoints because of the stroke width.
+#[must_use]
 fn arc_cap_extension_angle(arc_radius: f32, half_stroke: f32) -> f32 {
   // Avoid division by zero.
   if arc_radius <= 0.0 {
@@ -244,6 +259,7 @@ fn arc_cap_extension_angle(arc_radius: f32, half_stroke: f32) -> f32 {
 /// * `stroke`: Width of the arc body.
 ///
 /// Returns the [`SDFValue`] for the arc.
+#[must_use]
 fn sdf_arc_filled(
   uv: Vec2,
   center_shape: Vec2,
@@ -328,6 +344,7 @@ fn sdf_arc_filled(
 /// * `fade_intensity`: `0` (fully faded/transparent) to `1` (fully opaque)
 ///
 /// Returns `1` in the opaque region, fades to `0` outside it.
+#[must_use]
 fn arc_fade_out(
   uv: Vec2,
   center: Vec2,
@@ -421,6 +438,7 @@ fn arc_fade_out(
 ///
 /// Returns a `Vec2` with the first component being the [`SDFValue`] for the arc outline,
 /// and the second component being the fade intensity.
+#[must_use]
 fn sdf_arc_outline(
   uv: Vec2,
   center_shape: Vec2,
@@ -432,7 +450,7 @@ fn sdf_arc_outline(
   fade_center_angle: f32,
   opaque_percentage: f32,
 ) -> (SDFValue, f32) {
-  let sdf_outer = sdf_arc_filled(
+  let mut sdf_value = sdf_arc_filled(
     uv,
     center_shape,
     start_angle,
@@ -440,7 +458,9 @@ fn sdf_arc_outline(
     spine_radius,
     outer_radius * 2.0,
   );
-  let sdf_value = sdf_outer.inset(outer_radius - inner_radius);
+  if inner_radius > EPSILON {
+    sdf_value = sdf_value.inset(outer_radius - inner_radius);
+  }
   let fade_intensity = arc_fade_out(
     uv,
     center_shape,
@@ -461,6 +481,7 @@ fn sdf_arc_outline(
 /// * `radius`: The radius of the circle.
 ///
 /// Returns the [`SDFValue`] for the circle.
+#[must_use]
 fn sdf_circle_filled(uv: Vec2, center: Vec2, radius: f32) -> SDFValue {
   let p = uv - center;
   let d = p.length() - radius;
@@ -475,6 +496,7 @@ fn sdf_circle_filled(uv: Vec2, center: Vec2, radius: f32) -> SDFValue {
 ///
 /// * `t` should be in `0..1`.
 /// * `c` is usually in `-2..2`.
+#[must_use]
 fn exp_time(t: f32, c: f32) -> f32 {
   let c = c * 10.0;
 
@@ -488,6 +510,7 @@ fn exp_time(t: f32, c: f32) -> f32 {
 }
 
 /// Returns the derivative of the exponential function.
+#[must_use]
 fn exp_time_derivative(t: f32, c: f32) -> f32 {
   let c = c * 10.0;
 
@@ -500,6 +523,7 @@ fn exp_time_derivative(t: f32, c: f32) -> f32 {
   numerator / denominator
 }
 
+#[must_use]
 fn offset_loop_time(t: f32, offset: f32) -> f32 {
   // Apply offset
   let offset_t = t + offset;
@@ -512,6 +536,7 @@ struct RotatingCircleResult {
   angle: f32,
 }
 
+#[must_use]
 fn rotating_discrete_circle(
   center: Vec2,
   radius: f32,
@@ -541,6 +566,7 @@ fn rotating_discrete_circle(
 /// * `end_time`: The point in parent_t (`0..1`) where this sub-animation should end.
 ///
 /// Returns: `0` before `start_time`, `1` after `end_time`, and a `0..1` ramp between them.
+#[must_use]
 fn remap_time(parent_t: f32, start_time: f32, end_time: f32) -> f32 {
   if start_time >= end_time {
     // If start and end are the same, or invalid order we do an instant step.
@@ -568,6 +594,7 @@ enum Positioning {
 /// * `half_dimensions`: half-width and half-height of the box.
 ///
 /// Returns the signed distance from the box.
+#[must_use]
 fn sdf_box_filled(uv: Vec2, center: Vec2, positioning: Positioning, half_dimensions: Vec2) -> f32 {
   let actual_box_center = match positioning {
     Positioning::Centered => center,
@@ -598,6 +625,7 @@ fn sdf_box_filled(uv: Vec2, center: Vec2, positioning: Positioning, half_dimensi
 /// * `stroke`: This parameter will define the width of the outline.
 ///
 /// Returns the signed distance from the rectangle outline.
+#[must_use]
 fn sdf_box_outline(
   uv: Vec2,
   center: Vec2,
@@ -624,6 +652,7 @@ fn sdf_box_outline(
 /// `t`: progress of the bar, from 0.0 (empty) to 1.0 (full).
 /// `index`: vertical stacking index of the bar. Index 0 is the top-most bar.
 /// Returns an alpha value (0.0 to 1.0) for the pixel, representing the bar's visibility.
+#[must_use]
 fn draw_time_bar(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32, t: f32, index: u32) -> f32 {
   // --- Bar Configuration ---
   // The `stroke` argument is interpreted as the desired height of the bar.
@@ -704,6 +733,7 @@ fn draw_time_bar(uv: Vec2, aspect: Vec2, stroke: f32, aa_width: f32, t: f32, ind
 /// `index`: vertical stacking index of the bar. Index 0 is the top-most bar.
 /// `steps`: the number of discrete steps the bar fills in. If 0, bar is invisible. If 1, bar fades in fully.
 /// Returns an alpha value (0.0 to 1.0) for the pixel, representing the bar's visibility.
+#[must_use]
 fn draw_time_bar_discrete(
   uv: Vec2,
   aspect: Vec2,
@@ -1025,7 +1055,7 @@ impl Inputs {
         -PI / 4.0,
         PI / 4.0,
         1.0,
-        0.1,
+        0.0,
         0.5,
         -PI / 4.0,
         1.0,
