@@ -22,12 +22,13 @@ pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
 
 pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
   let color = &mut render_result.color;
-  let (resolution, time, frag_coord, mouse) = (
-    render_instruction.resolution,
-    render_instruction.time,
-    render_instruction.frag_coord,
-    render_instruction.mouse,
-  );
+  let &ShaderInput {
+    resolution,
+    time,
+    frag_coord,
+    mouse,
+    ..
+  } = render_instruction;
   State::new(Inputs {
     resolution,
     time,

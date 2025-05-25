@@ -8,12 +8,13 @@ pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
 
 pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
   let color = &mut render_result.color;
-  let (resolution, time, frag_coord, mouse) = (
-    render_instruction.resolution,
-    render_instruction.time,
-    render_instruction.frag_coord,
-    render_instruction.mouse,
-  );
+  let &ShaderInput {
+    resolution,
+    time,
+    frag_coord,
+    mouse,
+    ..
+  } = render_instruction;
   Inputs {
     resolution,
     time,
@@ -709,6 +710,7 @@ fn draw_time_bar_discrete(
 
 /// Alpha compositing using "over" operator.
 /// https://en.wikipedia.org/wiki/Alpha_compositing
+#[must_use]
 fn composite_layers<const N: usize>(overlay_colors: &[Vec4; N]) -> Vec4 {
   // Start with a fully opaque black background.
   let mut color_bg = Vec4::new(0.0, 0.0, 0.0, 1.0);
@@ -735,9 +737,134 @@ fn composite_layers<const N: usize>(overlay_colors: &[Vec4; N]) -> Vec4 {
 
 const SHOW_TIME_BAR: bool = true;
 
+#[derive(Copy, Clone, Default)]
+struct DrawableAlphaPixel(f32);
+
+impl DrawableAlphaPixel {
+  pub fn draw_sdf(&mut self, sdf: SDFValue, aa_width: f32) {
+    self.0 = self.0.max(sdf.to_alpha(aa_width));
+  }
+
+  /// Draws the SDF with an opacity multiplier.
+  pub fn draw_sdf_o(&mut self, sdf_opacity_pair: (SDFValue, f32), aa_width: f32) {
+    let alpha = sdf_opacity_pair.0.to_alpha(aa_width) * sdf_opacity_pair.1;
+    self.0 = self.0.max(alpha);
+  }
+
+  #[inline(always)]
+  #[must_use]
+  pub fn alpha(&self) -> f32 {
+    self.0
+  }
+}
+
+#[derive(Default)]
+struct LayerAlphas {
+  alpha_black: DrawableAlphaPixel,
+  alpha_red: DrawableAlphaPixel,
+  alpha_green: DrawableAlphaPixel,
+  alpha_blue: DrawableAlphaPixel,
+}
+impl LayerAlphas {
+  #[must_use]
+  pub fn composite(&self) -> Vec4 {
+    let color_background = Vec4::ONE;
+    let color_black = Vec4::new(0.0, 0.0, 0.0, self.alpha_black.alpha());
+    let color_red = Vec4::new(1.0, 0.0, 0.0, self.alpha_red.alpha() * 0.5);
+    let color_green = Vec4::new(0.0, 1.0, 0.0, self.alpha_green.alpha() * 0.5);
+    let color_blue = Vec4::new(0.0, 0.0, 1.0, self.alpha_blue.alpha() * 0.5);
+
+    let color_rgb = composite_layers(&[
+      color_background,
+      color_black,
+      color_red,
+      color_green,
+      color_blue,
+    ]);
+    color_rgb
+  }
+}
+
+struct AnimationParameters {
+  // --- General ---
+  uv: Vec2,
+  aa_width: f32,
+
+  // --- Debugging ---
+  debug: bool,
+  debug_stroke: f32,
+
+  // --- Actual Animation Parameters ---
+  start_circle_radius: f32,
+  start_circle_stroke: f32,
+  num_circles: i32,
+  angle_between_circles: f32,
+}
+
+fn anim_discrete_circle_transition(
+  layers: &mut LayerAlphas,
+  params: &AnimationParameters,
+  t_master: f32,
+  middle_circle_radius: f32,
+) {
+  let uv = params.uv;
+  let aa_width = params.aa_width;
+
+  let &mut LayerAlphas {
+    ref mut alpha_black,
+    ..
+  } = layers;
+
+  let start_circle_radius = params.start_circle_radius;
+  let start_circle_stroke = params.start_circle_stroke;
+  let num_circles = params.num_circles;
+  let angle_between_circles = params.angle_between_circles;
+
+  let t_rotation = exp_time(t_master, 0.8);
+  let t_trail_delayed = remap_time(t_master, 0.4, 1.0);
+  let t_trail = exp_time(t_trail_delayed, 0.4);
+  let t_assist_circle_delayed = remap_time(t_master, 0.5, 0.95);
+  let t_assist_circle = exp_time(t_assist_circle_delayed, 0.4);
+  let t_border_circle_radii = exp_time(remap_time(t_master, 0.3, 1.0), -0.4);
+
+  let outer_circle_outer_radius = mix(start_circle_radius, 0.0, t_border_circle_radii);
+  let trail_angular_extent = mix(0.0, angle_between_circles, t_trail);
+  let outer_circle_fade = mix(1.0, 0.4, t_trail);
+
+  for i in 0..num_circles {
+    // Compute the position of the circle based on the angle and radius.
+    let outer_discrete_circle = rotating_discrete_circle(
+      Vec2::ZERO,
+      middle_circle_radius,
+      -t_master * PI - t_rotation * TWO_PI * 5.0,
+      num_circles,
+      i,
+    );
+
+    let outer_circle_inner_radius =
+      (outer_circle_outer_radius - start_circle_stroke / 2.0).max(0.0);
+    let outer_circle_outer_radius = outer_circle_outer_radius + start_circle_stroke / 2.0;
+    let m = sdf_arc_outline(
+      uv,
+      outer_discrete_circle.angle - trail_angular_extent / 2.0,
+      outer_discrete_circle.angle + trail_angular_extent / 2.0,
+      middle_circle_radius,
+      outer_circle_inner_radius,
+      outer_circle_outer_radius,
+      outer_discrete_circle.angle,
+      outer_circle_fade,
+    );
+    alpha_black.draw_sdf_o((m.0, (m.1 + t_assist_circle).min(1.0)), aa_width);
+
+    let m = sdf_circle_filled(uv, middle_circle_radius).to_outline(outer_circle_outer_radius);
+    alpha_black.draw_sdf_o((m, t_assist_circle), aa_width);
+  }
+}
+
 impl Inputs {
   pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
-    // Get screen dimensions as Vec2.
+    // --- Setup the Animation Parameters ---
+    // Screen resolution in pixels.
     let screen_xy = self.resolution.xy();
     // Determine the shorter dimension of the screen.
     let shorter_dim = screen_xy.min_element();
@@ -763,40 +890,36 @@ impl Inputs {
     // This maps the center of the screen to (0,0) and the shortest side to [-1,1].
     // Aspect ratio is preserved.
     let uv = (frag_coord - screen_xy * 0.5) / shorter_dim * 2.0 * debug_zoom - debug_translate;
-    let uv = (frag_coord - screen_xy * 0.5) / shorter_dim * 2.0 * debug_zoom - debug_translate;
     let aa_width = 2.0 / screen_xy.max_element();
 
     let aspect = screen_xy / shorter_dim;
 
-    let mut black_alpha: f32 = 0.0;
-    let mut debug_red_alpha: f32 = 0.0;
-    let mut debug_blue_alpha: f32 = 0.0;
-    let mut debug_green_alpha: f32 = 0.0;
+    // Layer alpha values.
+    let mut layers = LayerAlphas::default();
 
-    let outline_stroke = 0.05; // Width of the outline stroke.
-    let m_viewport_rect = sdf_box_filled(uv, aspect).to_outline(outline_stroke);
-    debug_red_alpha = debug_red_alpha.max(m_viewport_rect.to_alpha(aa_width));
+    let debug_stroke = 0.05;
+    if debug {
+      let m_viewport_rect = sdf_box_filled(uv, aspect).to_outline(debug_stroke);
+      layers.alpha_red.draw_sdf(m_viewport_rect, aa_width);
+    }
 
-    let target_radius = 0.2;
-    let target_stroke = 0.05;
-    let period = 8.0; //4.0; // seconds
+    let start_circle_radius = 0.2;
+    let start_circle_stroke = 0.05;
+
+    let period = 8.0; // seconds
     let period = 4.0; // seconds
     let t_master = (self.time / period).fract();
+
+    // --- Good fixed time values ---
     //let t_master = 0.95;
     //let t_master = 0.8;
     //let t_master = 0.6;
     //let t_master = 0.5;
+
+    // --- Timings ---
     let t_master_offset = offset_loop_time(t_master, 0.5);
-    let t_outer_circle_radi = exp_time(remap_time(t_master, 0.3, 1.0), -0.4);
 
-    let t_rotation = exp_time(t_master, 0.8);
-    let t_trail_delayed = remap_time(t_master, 0.4, 1.0);
-    let t_trail = exp_time(t_trail_delayed, 0.4);
-    let t_assist_circle_delayed = remap_time(t_master, 0.5, 0.95);
-    let t_assist_circle = exp_time(t_assist_circle_delayed, 0.4);
-    //let t_exp = 1.0 - (-5.0 * t).exp();
-
-    // rotating circles
+    // --- Calculate the main circle's center distance ---
     let num_circles = 12;
     let angle_between_circles = 2.0 * PI / num_circles as f32;
     let mut distance_for_main_circle = 0.0;
@@ -804,17 +927,18 @@ impl Inputs {
       let circle_angle = angle_between_circles * i as f32;
       let distance_candidate = calculate_initial_distance_for_main_circle_center(
         aspect,
-        target_radius + target_stroke / 2.0,
+        start_circle_radius + start_circle_stroke / 2.0,
         circle_angle,
       );
       if let Some(distance_candidate) = distance_candidate {
         distance_for_main_circle = distance_candidate.max(distance_for_main_circle);
       }
     }
+
     // move from bottom_middle to center
     let middle_circle_start_radius = distance_for_main_circle;
     let middle_circle_radius =
-      mix(middle_circle_start_radius, 0.0, t_master * t_master).max(target_radius);
+      mix(middle_circle_start_radius, 0.0, t_master * t_master).max(start_circle_radius);
     let middle_circle_start_position = Vec2::new(0.0, -distance_for_main_circle);
 
     let middle_circle_position = mix(middle_circle_start_position, Vec2::ZERO, t_master);
@@ -826,129 +950,105 @@ impl Inputs {
       3,
     )
     .position;
-    let middle_circle_radius = middle_circle_position.y.abs().max(target_radius);
 
-    let m_middle_circle_position_path = sdf_circle_filled(
-      uv - (middle_circle_start_position / 2.0),
-      middle_circle_start_radius / 2.0,
-    )
-    .to_outline(target_stroke / 2.0);
-    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_position_path.to_alpha(aa_width));
+    // TODO FIXME MATHSE
+    let middle_circle_radius = middle_circle_position.y.abs().max(start_circle_radius);
+
+    if debug {
+      let m_middle_circle_position_path = sdf_circle_filled(
+        uv - (middle_circle_start_position / 2.0),
+        middle_circle_start_radius / 2.0,
+      )
+      .to_outline(start_circle_stroke / 2.0);
+      layers
+        .alpha_blue
+        .draw_sdf(m_middle_circle_position_path, aa_width);
+    }
 
     let middle_circle_moved_distance =
       (middle_circle_start_position - middle_circle_position).length();
-    let outer_circle_outer_radius = mix(target_radius, 0.0, t_outer_circle_radi);
     // (middle_circle_start_radius + target_radius)
     //  - (middle_circle_radius + middle_circle_moved_distance);
-    let trail_angular_extent = mix(0.0, angle_between_circles, t_trail);
-    let outer_circle_fade = mix(1.0, 0.4, t_trail);
 
     // y adjust to follow the middle circle
     //middle_circle_position.y -=
     //  (middle_circle_position.y + middle_circle_radius) * (1.0 - t_master);
 
-    let m_start_circle = sdf_circle_filled(uv, target_radius).to_outline(target_stroke);
-    debug_red_alpha = debug_red_alpha.max(m_start_circle.to_alpha(aa_width));
-    let m_middle_circle_path = sdf_circle_filled(
-      uv - middle_circle_start_position,
-      middle_circle_start_radius,
-    )
-    .to_outline(target_stroke / 2.0);
-    debug_red_alpha = debug_red_alpha.max(m_middle_circle_path.to_alpha(aa_width));
+    if debug {
+      let m_start_circle =
+        sdf_circle_filled(uv, start_circle_radius).to_outline(start_circle_stroke);
+      layers.alpha_red.draw_sdf(m_start_circle, aa_width);
 
-    let m_middle_circle_outline =
-      sdf_circle_filled(uv - middle_circle_position, middle_circle_radius)
-        .to_outline(target_stroke / 2.0);
-    debug_blue_alpha = debug_blue_alpha.max(m_middle_circle_outline.to_alpha(aa_width));
+      let m_middle_circle_path = sdf_circle_filled(
+        uv - middle_circle_start_position,
+        middle_circle_start_radius,
+      )
+      .to_outline(start_circle_stroke / 2.0);
+      layers.alpha_green.draw_sdf(m_middle_circle_path, aa_width);
 
-    for i in 0..num_circles {
-      // Compute the position of the circle based on the angle and radius.
-      let outer_discrete_circle = rotating_discrete_circle(
-        middle_circle_position,
-        middle_circle_radius,
-        -t_master * PI - t_rotation * TWO_PI * 5.0,
-        num_circles,
-        i,
-      );
-
-      let outer_circle_inner_radius = (outer_circle_outer_radius - target_stroke / 2.0).max(0.0);
-      let outer_circle_outer_radius = outer_circle_outer_radius + target_stroke / 2.0;
-      let m = sdf_arc_outline(
-        uv - middle_circle_position,
-        outer_discrete_circle.angle - trail_angular_extent / 2.0,
-        outer_discrete_circle.angle + trail_angular_extent / 2.0,
-        middle_circle_radius,
-        outer_circle_inner_radius,
-        outer_circle_outer_radius,
-        outer_discrete_circle.angle,
-        outer_circle_fade,
-      );
-      black_alpha = black_alpha.max(m.0.to_alpha(aa_width) * (m.1 + t_assist_circle).min(1.0));
-      // * (m.y + 6.0 / 256.0));
-
-      let m = sdf_circle_filled(uv - middle_circle_position, middle_circle_radius)
-        .to_outline(outer_circle_outer_radius);
-      black_alpha = black_alpha.max(m.to_alpha(aa_width) * t_assist_circle);
+      let m_middle_circle_outline =
+        sdf_circle_filled(uv - middle_circle_position, middle_circle_radius)
+          .to_outline(start_circle_stroke / 2.0);
+      layers
+        .alpha_blue
+        .draw_sdf(m_middle_circle_outline, aa_width);
     }
+
+    let params = AnimationParameters {
+      uv,
+      aa_width,
+      debug,
+      debug_stroke,
+      start_circle_radius,
+      start_circle_stroke,
+      num_circles,
+      angle_between_circles,
+    };
+
+    anim_discrete_circle_transition(&mut layers, &params, t_master, middle_circle_radius);
 
     if debug && false {
       let sdf_arc_test = sdf_arc_outline(uv, -PI / 4.0, PI / 4.0, 1.0, 0.0, 0.5, -PI / 4.0, 1.0);
-      debug_green_alpha =
-        debug_green_alpha.max(sdf_arc_test.0.offset(0.05).to_alpha(aa_width) * sdf_arc_test.1);
-      debug_red_alpha = debug_red_alpha.max(sdf_arc_test.0.to_alpha(aa_width) * sdf_arc_test.1);
-    }
-
-    if !debug {
-      debug_blue_alpha = 0.0;
-      debug_red_alpha = 0.0;
-      debug_green_alpha = 0.0;
+      layers
+        .alpha_red
+        .draw_sdf_o((sdf_arc_test.0.offset(0.05), sdf_arc_test.1), aa_width);
+      layers
+        .alpha_green
+        .draw_sdf_o((sdf_arc_test.0, sdf_arc_test.1), aa_width);
     }
 
     if SHOW_TIME_BAR {
       let m_master_time_bar = sdf_progress_bar(
         uv,
         aspect,
-        target_stroke,
+        start_circle_stroke,
         t_master,
         0, // index
       );
-      debug_green_alpha = debug_green_alpha.max(m_master_time_bar.to_alpha(aa_width));
+      layers.alpha_green.draw_sdf(m_master_time_bar, aa_width);
       let m_master_time_bar = draw_time_bar_discrete(
         uv,
         aspect,
-        target_stroke,
+        start_circle_stroke,
         t_master,
         1, // index
         10,
       );
-      debug_green_alpha =
-        debug_green_alpha.max(m_master_time_bar.0.to_alpha(aa_width) * m_master_time_bar.1);
+      layers.alpha_green.draw_sdf_o(m_master_time_bar, aa_width);
 
       let m_master_time_offset_bar = sdf_progress_bar(
         uv,
         aspect,
-        target_stroke,
+        start_circle_stroke,
         t_master_offset,
         2, // index
       );
-      debug_red_alpha = debug_red_alpha.max(m_master_time_offset_bar.to_alpha(aa_width));
+      layers
+        .alpha_red
+        .draw_sdf(m_master_time_offset_bar, aa_width);
     }
 
-    let color_background = Vec4::ONE;
-    let color_black = Vec4::new(0.0, 0.0, 0.0, black_alpha);
-    let color_red = Vec4::new(1.0, 0.0, 0.0, debug_red_alpha * 0.5);
-    let color_blue = Vec4::new(0.0, 0.0, 1.0, debug_blue_alpha * 0.5);
-    let color_green = Vec4::new(0.0, 1.0, 0.0, debug_green_alpha * 0.5);
-
-    let color_rgb = composite_layers(&[
-      color_background,
-      color_black,
-      color_red,
-      color_blue,
-      color_green,
-    ]);
-
-    // Output final pixel color with alpha = 1.0.
-    *frag_color = color_rgb;
+    // Output the final color.
+    *frag_color = layers.composite();
   }
 }
