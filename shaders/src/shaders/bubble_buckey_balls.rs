@@ -69,10 +69,6 @@ impl<C0, C1> State<C0, C1> {
 // **************************************************************************
 // CONSTANTS
 
-const PI: f32 = 3.14159;
-const TWO_PI: f32 = 6.28318;
-const _PI_OVER_TWO: f32 = 1.570796;
-const ONE_OVER_PI: f32 = 0.318310;
 const GR: f32 = 1.61803398;
 
 const SMALL_FLOAT: f32 = 0.0001;
@@ -94,11 +90,11 @@ const BOND_MATL: f32 = 3.0;
 // Range of outputs := ([-1.,-1.,-1.] -> [1.,1.,1.])
 
 fn rotate_around_y_axis(point: Vec3, cosangle: f32, sinangle: f32) -> Vec3 {
-    return vec3(
+    vec3(
         point.x * cosangle + point.z * sinangle,
         point.y,
         point.x * -sinangle + point.z * cosangle,
-    );
+    )
 }
 
 // Rotate the input point around the x-axis by the angle given as a
@@ -129,9 +125,9 @@ fn _cartesian_to_polar(p: Vec3) -> Vec2 {
 
 fn mergeobjs(a: Vec2, b: Vec2) -> Vec2 {
     if a.x < b.x {
-        return a;
+        a
     } else {
-        return b;
+        b
     }
 
     // XXX: Some architectures have bad optimization paths
@@ -152,7 +148,7 @@ fn segmentdf(p: Vec3, a: Vec3, b: Vec3, r: f32) -> f32 {
     let ba: Vec3 = b - a;
     let mut t: f32 = ba.dot(p - a) / SMALL_FLOAT.max(ba.dot(ba));
     t = t.clamp(0., 1.);
-    return (ba * t + a - p).length() - r;
+    (ba * t + a - p).length() - r
 }
 
 // **************************************************************************
@@ -277,7 +273,7 @@ impl<C0, C1> State<C0, C1> {
         if t > maxd {
             material = -1.0;
         }
-        return vec2(t, material);
+        vec2(t, material)
     }
 }
 
@@ -341,7 +337,7 @@ impl<C0, C1> State<C0, C1> {
         let cosrotx: f32 = rotx.cos();
         let sinrotx: f32 = rotx.sin();
 
-        let roty: f32 = TWO_PI * click.x + 0.05 * self.time;
+        let roty: f32 = TAU * click.x + 0.05 * self.time;
         let cosroty: f32 = roty.cos();
         let sinroty: f32 = roty.sin();
 
@@ -465,10 +461,10 @@ impl<C0: SampleCube, C1: SampleCube> State<C0, C1> {
         if ndl > 0. {
             let frk: f32 = 0.5 + 2.0 * costd * costd * surf.roughness;
             let diff: Vec3 = surf.basecolor
-                * ONE_OVER_PI
+                * FRAC_1_PI
                 * (1. + (frk - 1.) * pow5(1. - costl))
                 * (1. + (frk - 1.) * pow5(1. - costv));
-            //let diff: Vec3 = surf.basecolor * ONE_OVER_PI; // lambert
+            //let diff: Vec3 = surf.basecolor * FRAC_1_PI; // lambert
 
             // D(h) factor
             // using the GGX approximation where the gamma factor is 2.

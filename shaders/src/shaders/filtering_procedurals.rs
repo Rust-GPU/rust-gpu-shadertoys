@@ -411,13 +411,12 @@ impl Inputs {
                 ddy_uvw = uvw + uvw.dfdy();
             }
             // shading
-            let mate: Vec3;
 
-            if p.x > th {
-                mate = sample_texture(uvw, nor, mid);
+            let mate = if p.x > th {
+                sample_texture(uvw, nor, mid)
             } else {
-                mate = sample_texture_with_filter(uvw, ddx_uvw, ddy_uvw, nor, mid);
-            }
+                sample_texture_with_filter(uvw, ddx_uvw, ddy_uvw, nor, mid)
+            };
 
             // lighting
             let lin: Vec3 = do_lighting(pos, nor, occ, rd);

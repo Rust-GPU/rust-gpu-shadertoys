@@ -92,7 +92,7 @@ const _E: Vec3 = vec3(0.0, 0.01, 0.0);
 
 // Distance to Bezier
 // inspired by [iq:https://www.shadertoy.com/view/ldj3Wh]
-// calculate distance to 2D bezier curve on xy but without forgeting the z component of p
+// calculate distance to 2D bezier curve on xy but without forgetting the z component of p
 // total distance is corrected using pytagore just before return
 fn bezier(mut m: Vec2, mut n: Vec2, mut o: Vec2, p: Vec3) -> Vec2 {
     let q: Vec2 = p.xy();
@@ -153,7 +153,7 @@ impl State {
 
         // Distance to other shapes ---------------------------------------------
         let mut d_shape: f32;
-        let id_morph: i32 = ((0.5 + (self.inputs.time) / (2.0 * 3.141592658)).floor() % 3.0) as i32;
+        let id_morph: i32 = ((0.5 + self.inputs.time / TAU).floor() % 3.0) as i32;
 
         if id_morph == 1 {
             p = (self.mat2_rot.transpose() * p.xz()).extend(p.y).xzy();

@@ -2,7 +2,7 @@
 //!
 //! Original comment:
 //! ```glsl
-//! //    
+//! //
 //! // Testing Sebastian Aaltonen's soft shadow improvement
 //! //
 //! // The technique is based on estimating a better closest point in ray
@@ -56,13 +56,13 @@ fn sd_box(p: Vec3, b: Vec3) -> f32 {
 
 fn map(pos: Vec3) -> f32 {
     let qos: Vec3 = vec3((pos.x + 0.5).fract_gl() - 0.5, pos.y, pos.z);
-    return sd_plane(pos - vec3(0.0, 0.00, 0.0))
-        .min(sd_box(qos - vec3(0.0, 0.25, 0.0), vec3(0.2, 0.5, 0.2)));
+    sd_plane(pos - vec3(0.0, 0.00, 0.0))
+        .min(sd_box(qos - vec3(0.0, 0.25, 0.0), vec3(0.2, 0.5, 0.2)))
 }
 
 //------------------------------------------------------------------
 
-fn calc_softshadow(ro: Vec3, rd: Vec3, mint: f32, tmax: f32, technique: i32) -> f32 {
+fn calc_softshadow(ro: Vec3, rd: Vec3, mint: f32, tmax: f32, technique: bool) -> f32 {
     let mut res: f32 = 1.0;
     let mut t: f32 = mint;
     let mut ph: f32 = 1e10; // big, such that y = 0 on the first iteration
@@ -70,7 +70,7 @@ fn calc_softshadow(ro: Vec3, rd: Vec3, mint: f32, tmax: f32, technique: i32) -> 
         let h: f32 = map(ro + rd * t);
 
         // traditional technique
-        if technique == 0 {
+        if !technique {
             res = res.min(10.0 * h / t);
         }
         // improved technique
@@ -149,7 +149,7 @@ fn calc_ao(pos: Vec3, nor: Vec3) -> f32 {
     (1.0 - 1.5 * occ).clamp(0.0, 1.0)
 }
 
-fn render(ro: Vec3, rd: Vec3, technique: i32) -> Vec3 {
+fn render(ro: Vec3, rd: Vec3, technique: bool) -> Vec3 {
     let mut col: Vec3 = Vec3::ZERO;
     let t: f32 = cast_ray(ro, rd);
 
@@ -201,11 +201,7 @@ impl Inputs {
         // camera-to-world transformation
         let ca: Mat3 = set_camera(ro, ta, 0.0);
 
-        let technique: i32 = if (self.time / 2.0).fract_gl() > 0.5 {
-            1
-        } else {
-            0
-        };
+        let technique = (self.time / 2.0).fract_gl() > 0.5;
 
         let mut tot: Vec3 = Vec3::ZERO;
 

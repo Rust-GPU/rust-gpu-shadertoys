@@ -107,9 +107,9 @@ impl<C0: SampleCube> Inputs<C0> {
         p.x *= self.resolution.x / self.resolution.y;
         let mut m: Vec2 = Vec2::ZERO;
         if self.mouse.z > 0.0 {
-            m = self.mouse.xy() / self.resolution.xy() * 3.14;
+            m = self.mouse.xy() / self.resolution.xy() * PI;
         }
-        m = m - Vec2::splat(0.5);
+        m -= Vec2::splat(0.5);
 
         // camera
 

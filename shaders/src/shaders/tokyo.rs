@@ -347,7 +347,7 @@ impl State {
             }
         }
 
-        ro = ro + rd * t;
+        ro *= rd * t;
         self.nor1 = self.calc_normal(ro);
         ro += 0.01 * self.nor1;
         rd = rd.reflect(self.nor1);
@@ -462,87 +462,85 @@ impl State {
         if q.y < 0.12 || q.y >= 0.88 {
             *frag_color = vec4(0.0, 0.0, 0.0, 1.0);
             return;
-        } else {
-            // camera
-            let z: f32 = self.time();
-            let x: f32 = -10.9 + 1. * (self.time() * 0.2).sin();
-            let ro: Vec3 = vec3(x, 1.3 + 0.3 * (self.time() * 0.26).cos(), z - 1.);
-            let ta: Vec3 = vec3(
-                -8.0,
-                1.3 + 0.4 * (self.time() * 0.26).cos(),
-                z + 4. + (self.time() * 0.04).cos(),
-            );
-
-            let ww: Vec3 = (ta - ro).normalize();
-            let uu: Vec3 = ww.cross(vec3(0.0, 1.0, 0.0)).normalize();
-            let vv: Vec3 = uu.cross(ww).normalize();
-            let rd: Vec3 = (-p.x * uu + p.y * vv + 2.2 * ww).normalize();
-
-            let mut col: Vec3 = BACKGROUND_COLOR;
-
-            // raymarch
-            let ints: f32 = self.intersect(ro + random_start(p) * rd, rd);
-            if ints > -0.5 {
-                // calculate reflectance
-                let mut r: f32 = 0.09;
-                if self.int1.y > 0.129 {
-                    r = 0.025
-                        * hash(
-                            133.1234 * (self.int1.y / 3.0).floor() + (self.int1.z / 3.0).floor(),
-                        );
-                }
-                if self.int1.x.abs() < 8.0 {
-                    if self.int1.y < 0.01 {
-                        // road
-                        r = 0.007 * fbm(self.int1.xz());
-                    } else {
-                        // car
-                        r = 0.02;
-                    }
-                }
-                if self.int1.x.abs() < 0.1 {
-                    r *= 4.0;
-                }
-                if (self.int1.x.abs() - 7.4).abs() < 0.1 {
-                    r *= 4.0;
-                }
-
-                r *= 2.0;
-
-                col = self.shade(ro, self.int1, self.nor1);
-
-                if ints > 0.5 {
-                    let tmp = self.calc_normal_simple(self.int2);
-                    col += r * self.shade(self.int1, self.int2, tmp);
-                }
-                if self.lint2.w > 0. {
-                    col += (r * LIGHTINTENSITY * (-self.lint2.w * 7.0).exp())
-                        * self.get_light_color(self.lint2.xyz());
-                }
-            }
-
-            // Rain (by Dave Hoskins)
-            let st: Vec2 = 256.
-                * (p * vec2(0.5, 0.01) + vec2(self.time() * 0.13 - q.y * 0.6, self.time() * 0.13));
-            let mut f: f32 = noise(st) * noise(st * 0.773) * 1.55;
-            f = 0.25 + (f.abs().powf(13.0) * 13.0).clamp(0.0, q.y * 0.14);
-
-            if self.lint1.w > 0.0 {
-                col += (f * LIGHTINTENSITY * (-self.lint1.w * 7.0).exp())
-                    * self.get_light_color(self.lint1.xyz());
-            }
-
-            col += 0.25 * f * (Vec3::splat(0.2) + BACKGROUND_COLOR);
-
-            // post processing
-            col = col.clamp(Vec3::ZERO, Vec3::ONE).powf(0.4545);
-            col *= 1.2 * vec3(1.0, 0.99, 0.95);
-            col = (1.06 * col - Vec3::splat(0.03)).clamp(Vec3::ZERO, Vec3::ONE);
-            q.y = (q.y - 0.12) * (1. / 0.76);
-            col *= Vec3::splat(0.5)
-                + Vec3::splat(0.5) * (16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y)).powf(0.1);
-
-            *frag_color = col.extend(1.0);
         }
+
+        // camera
+        let z: f32 = self.time();
+        let x: f32 = -10.9 + 1. * (self.time() * 0.2).sin();
+        let ro: Vec3 = vec3(x, 1.3 + 0.3 * (self.time() * 0.26).cos(), z - 1.);
+        let ta: Vec3 = vec3(
+            -8.0,
+            1.3 + 0.4 * (self.time() * 0.26).cos(),
+            z + 4. + (self.time() * 0.04).cos(),
+        );
+
+        let ww: Vec3 = (ta - ro).normalize();
+        let uu: Vec3 = ww.cross(vec3(0.0, 1.0, 0.0)).normalize();
+        let vv: Vec3 = uu.cross(ww).normalize();
+        let rd: Vec3 = (-p.x * uu + p.y * vv + 2.2 * ww).normalize();
+
+        let mut col: Vec3 = BACKGROUND_COLOR;
+
+        // raymarch
+        let ints: f32 = self.intersect(ro + random_start(p) * rd, rd);
+        if ints > -0.5 {
+            // calculate reflectance
+            let mut r: f32 = 0.09;
+            if self.int1.y > 0.129 {
+                r = 0.025
+                    * hash(133.1234 * (self.int1.y / 3.0).floor() + (self.int1.z / 3.0).floor());
+            }
+            if self.int1.x.abs() < 8.0 {
+                if self.int1.y < 0.01 {
+                    // road
+                    r = 0.007 * fbm(self.int1.xz());
+                } else {
+                    // car
+                    r = 0.02;
+                }
+            }
+            if self.int1.x.abs() < 0.1 {
+                r *= 4.0;
+            }
+            if (self.int1.x.abs() - 7.4).abs() < 0.1 {
+                r *= 4.0;
+            }
+
+            r *= 2.0;
+
+            col = self.shade(ro, self.int1, self.nor1);
+
+            if ints > 0.5 {
+                let tmp = self.calc_normal_simple(self.int2);
+                col += r * self.shade(self.int1, self.int2, tmp);
+            }
+            if self.lint2.w > 0. {
+                col += (r * LIGHTINTENSITY * (-self.lint2.w * 7.0).exp())
+                    * self.get_light_color(self.lint2.xyz());
+            }
+        }
+
+        // Rain (by Dave Hoskins)
+        let st: Vec2 =
+            256. * (p * vec2(0.5, 0.01) + vec2(self.time() * 0.13 - q.y * 0.6, self.time() * 0.13));
+        let mut f: f32 = noise(st) * noise(st * 0.773) * 1.55;
+        f = 0.25 + (f.abs().powf(13.0) * 13.0).clamp(0.0, q.y * 0.14);
+
+        if self.lint1.w > 0.0 {
+            col += (f * LIGHTINTENSITY * (-self.lint1.w * 7.0).exp())
+                * self.get_light_color(self.lint1.xyz());
+        }
+
+        col += 0.25 * f * (Vec3::splat(0.2) + BACKGROUND_COLOR);
+
+        // post processing
+        col = col.clamp(Vec3::ZERO, Vec3::ONE).powf(0.4545);
+        col *= 1.2 * vec3(1.0, 0.99, 0.95);
+        col = (1.06 * col - Vec3::splat(0.03)).clamp(Vec3::ZERO, Vec3::ONE);
+        q.y = (q.y - 0.12) * (1. / 0.76);
+        col *= Vec3::splat(0.5)
+            + Vec3::splat(0.5) * (16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y)).powf(0.1);
+
+        *frag_color = col.extend(1.0);
     }
 }

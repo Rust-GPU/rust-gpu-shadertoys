@@ -86,7 +86,7 @@ fn p_r(p: &mut Vec2, a: f32) {
 fn p_reflect(p: &mut Vec3, plane_normal: Vec3, offset: f32) -> f32 {
     let t: f32 = p.dot(plane_normal) + offset;
     if t < 0.0 {
-        *p = *p - (2. * t) * plane_normal;
+        *p -= (2. * t) * plane_normal;
     }
     t.sign_gl()
 }
@@ -94,6 +94,10 @@ fn p_reflect(p: &mut Vec3, plane_normal: Vec3, offset: f32) -> f32 {
 fn smax(a: f32, b: f32, r: f32) -> f32 {
     let m: f32 = a.max(b);
     if (-a < r) && (-b < r) {
+        #[expect(
+            clippy::imprecise_flops,
+            reason = "Rust GPU does not yet support hypot from libm"
+        )]
         m.max(-(r - ((r + a) * (r + a) + (r + b) * (r + b)).sqrt()))
     } else {
         m
@@ -141,14 +145,10 @@ impl State {
 // Adapted from mattz https://www.shadertoy.com/view/4d2GzV
 // --------------------------------------------------------
 
-const SQRT3: f32 = 1.7320508075688772;
 const I3: f32 = 0.5773502691896258;
 
 const CART2HEX: Mat2 = mat2(vec2(1.0, 0.0), vec2(I3, 2.0 * I3));
-const HEX2CART: Mat2 = mat2(vec2(1.0, 0.0), vec2(-0.5, 0.5 * SQRT3));
-
-const _PHI: f32 = 1.618033988749895;
-const _TAU: f32 = 6.283185307179586;
+const HEX2CART: Mat2 = mat2(vec2(1.0, 0.0), vec2(-0.5, 0.5 * SQRT_3));
 
 struct TriPoints {
     a: Vec2,
@@ -272,7 +272,7 @@ impl State {
 // --------------------------------------------------------
 
 fn pal(t: f32, a: Vec3, b: Vec3, c: Vec3, d: Vec3) -> Vec3 {
-    a + b * (6.28318 * (c * t + d)).cos()
+    a + b * (TAU * (c * t + d)).cos()
 }
 
 fn spectrum(n: f32) -> Vec3 {
@@ -307,11 +307,9 @@ impl State {
                 xy.y = mouse.y;
             }
         }
-        let rx: f32;
-        let ry: f32;
 
-        rx = (xy.y + 0.5) * PI;
-        ry = (-xy.x) * 2.0 * PI;
+        let rx = (xy.y + 0.5) * PI;
+        let ry = (-xy.x) * 2.0 * PI;
 
         spherical_matrix(rx, ry)
     }

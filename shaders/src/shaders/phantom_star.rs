@@ -28,13 +28,9 @@ fn rot(a: f32) -> Mat2 {
     Mat2::from_cols_array(&[c, s, -s, c])
 }
 
-//const pi: f32 = (-1.0).acos();
-const PI_: f32 = PI;
-const PI2: f32 = PI_ * 2.0;
-
 fn pmod(p: Vec2, r: f32) -> Vec2 {
-    let mut a: f32 = p.x.atan2(p.y) + PI_ / r;
-    let n: f32 = PI2 / r;
+    let mut a: f32 = p.x.atan2(p.y) + PI / r;
+    let n: f32 = TAU / r;
     a = (a / n).floor() * n;
     rot(-a).transpose() * p
 }

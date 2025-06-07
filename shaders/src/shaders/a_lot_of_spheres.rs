@@ -77,7 +77,7 @@ fn intersect_plane(ro: Vec3, rd: Vec3, height: f32, dist: &mut f32) -> bool {
     }
 
     let mut d: f32 = -(ro.y - height) / rd.y;
-    d = d.min(100000.0);
+    d = d.min(100_000.0);
     if d > 0.0 {
         *dist = d;
         return true;

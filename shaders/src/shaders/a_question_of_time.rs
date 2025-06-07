@@ -75,7 +75,7 @@ fn stroke(d: f32, w: f32, s: f32, i: f32) -> f32 {
 }
 // a simple palette
 fn pal(d: f32) -> Vec3 {
-    0.5 * ((6.283 * d * vec3(2.0, 2.0, 1.0) + vec3(0.0, 1.4, 0.0)).cos() + Vec3::ONE)
+    0.5 * ((TAU * d * vec3(2.0, 2.0, 1.0) + vec3(0.0, 1.4, 0.0)).cos() + Vec3::ONE)
 }
 // 2d rotation matrix
 fn uvr_rotate(a: f32) -> Mat2 {
@@ -100,7 +100,7 @@ fn apollonian(uv: Vec2) -> Vec3 {
     // a DEC is a configuration of 4 circles tangent to each other
     // the easiest way to build the initial one it to construct a symetric Steiner Chain.
     // http://mathworld.wolfram.com/SteinerChain.html
-    let a: f32 = 6.283 / 3.;
+    let a: f32 = TAU / 3.;
     let ra: f32 = 1.0 + (a * 0.5).sin();
     let rb: f32 = 1.0 - (a * 0.5).sin();
     dec[0] = vec3(0.0, 0.0, -1.0 / ra);

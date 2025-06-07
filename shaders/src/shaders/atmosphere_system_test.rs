@@ -77,12 +77,12 @@ struct _Plane {
 
 fn rotate_around_x(angle_degrees: f32) -> Mat3 {
     let angle: f32 = angle_degrees.to_radians();
-    let _sin: f32 = angle.sin();
-    let _cos: f32 = angle.cos();
-    Mat3::from_cols_array(&[1.0, 0.0, 0.0, 0.0, _cos, -_sin, 0.0, _sin, _cos])
+    let sin: f32 = angle.sin();
+    let cos: f32 = angle.cos();
+    Mat3::from_cols_array(&[1.0, 0.0, 0.0, 0.0, cos, -sin, 0.0, sin, cos])
 }
 
-fn get_primary_ray(cam_local_point: Vec3, cam_origin: &mut Vec3, cam_look_at: &mut Vec3) -> Ray {
+fn get_primary_ray(cam_local_point: Vec3, cam_origin: &Vec3, cam_look_at: &Vec3) -> Ray {
     let fwd: Vec3 = (*cam_look_at - *cam_origin).normalize();
     let mut up: Vec3 = vec3(0.0, 1.0, 0.0);
     let right: Vec3 = up.cross(fwd);
@@ -94,7 +94,7 @@ fn get_primary_ray(cam_local_point: Vec3, cam_origin: &mut Vec3, cam_look_at: &m
     }
 }
 
-fn isect_sphere(ray: Ray, sphere: Sphere, t0: &mut f32, t1: &mut f32) -> bool {
+fn isect_sphere(ray: Ray, sphere: &Sphere, t0: &mut f32, t1: &mut f32) -> bool {
     let rc: Vec3 = sphere.origin - ray.origin;
     let radius2: f32 = sphere.radius * sphere.radius;
     let tca: f32 = rc.dot(ray.direction);
@@ -160,7 +160,7 @@ const NUM_SAMPLES_LIGHT: i32 = 8;
 fn get_sun_light(ray: Ray, optical_depth_r: &mut f32, optical_depth_m: &mut f32) -> bool {
     let mut t0: f32 = 0.0;
     let mut t1: f32 = 0.0;
-    isect_sphere(ray, ATMOSPHERE, &mut t0, &mut t1);
+    isect_sphere(ray, &ATMOSPHERE, &mut t0, &mut t1);
 
     let mut march_pos: f32 = 0.0;
     let march_step: f32 = t1 / NUM_SAMPLES_LIGHT as f32;
@@ -185,7 +185,7 @@ impl State {
         // "pierce" the atmosphere with the viewing ray
         let mut t0: f32 = 0.0;
         let mut t1: f32 = 0.0;
-        if !isect_sphere(ray, ATMOSPHERE, &mut t0, &mut t1) {
+        if !isect_sphere(ray, &ATMOSPHERE, &mut t0, &mut t1) {
             return Vec3::ZERO;
         }
 
@@ -286,10 +286,10 @@ impl State {
 
             col = self.get_incident_light(ray);
         } else {
-            let mut eye: Vec3 = vec3(0.0, EARTH_RADIUS + 1.0, 0.0);
-            let mut look_at: Vec3 = vec3(0.0, EARTH_RADIUS + 1.5, -1.0);
+            let eye: Vec3 = vec3(0.0, EARTH_RADIUS + 1.0, 0.0);
+            let look_at: Vec3 = vec3(0.0, EARTH_RADIUS + 1.5, -1.0);
 
-            let ray: Ray = get_primary_ray(point_cam, &mut eye, &mut look_at);
+            let ray: Ray = get_primary_ray(point_cam, &eye, &look_at);
 
             if ray.direction.dot(vec3(0.0, 1.0, 0.0)) > 0.0 {
                 col = self.get_incident_light(ray);

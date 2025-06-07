@@ -29,7 +29,7 @@ struct Inputs {
 impl Inputs {
     fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let mut p: Vec2 =
-            (2.0 * frag_coord - self.resolution.xy()) / (self.resolution.y.min(self.resolution.x));
+            (2.0 * frag_coord - self.resolution.xy()) / (self.resolution.xy().min_element());
 
         // background color
         let bcol: Vec3 = vec3(1.0, 0.8, 0.7 - 0.07 * p.y) * (1.0 - 0.25 * p.length());
@@ -37,7 +37,7 @@ impl Inputs {
         // animate
         let tt: f32 = self.time.rem_euclid(1.5) / 1.5;
         let mut ss: f32 = tt.powf(0.2) * 0.5 + 0.5;
-        ss = 1.0 + ss * 0.5 * (tt * 6.2831 * 3.0 + p.y * 0.5).sin() * (-tt * 4.0).exp();
+        ss = 1.0 + ss * 0.5 * (tt * TAU * 3.0 + p.y * 0.5).sin() * (-tt * 4.0).exp();
         p *= vec2(0.5, 1.5) + ss * vec2(0.5, -0.5);
 
         // shape
@@ -51,7 +51,7 @@ impl Inputs {
             d = 0.5;
         } else {
             p.y -= 0.25;
-            let a: f32 = p.x.atan2(p.y) / 3.141593;
+            let a: f32 = p.x.atan2(p.y) / PI;
             r = p.length();
             let h: f32 = a.abs();
             d = (13.0 * h - 22.0 * h * h + 10.0 * h * h * h) / (6.0 - 5.0 * h);

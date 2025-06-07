@@ -180,7 +180,7 @@ impl State {
             }
         }
 
-        tot = tot / (AA * AA) as f32;
+        tot /= (AA * AA) as f32;
 
         *frag_color = tot.extend(1.0);
     }

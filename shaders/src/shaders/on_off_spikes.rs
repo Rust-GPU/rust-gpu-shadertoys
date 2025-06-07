@@ -78,13 +78,8 @@ const TENTACLE_COL: Vec3 = vec3(0.06, 0.06, 0.06);
 
 const GAMMA: f32 = 2.2;
 
-//---
-const PI2: f32 = 6.283185307179586476925286766559;
-const PIH: f32 = 1.5707963267949;
-
 // Using the nebula function of the "Star map shader" by morgan3d
 // as environment map and light sphere texture (https://www.shadertoy.com/view/4sBXzG)
-const _PI: f32 = 3.1415927;
 const NUM_OCTAVES: i32 = 4;
 fn hash(n: f32) -> f32 {
     (n.sin() * 1e4).fract_gl()
@@ -223,7 +218,7 @@ impl State {
         let mut a: f32 = q.z.atan2(q.x);
         a += 0.4 * (r - self.inputs.time).sin();
 
-        q = vec3(a * NUM_TENTACLES as f32 / PI2, q.y, q.xz().length()); // circular domain
+        q = vec3(a * NUM_TENTACLES as f32 / TAU, q.y, q.xz().length()); // circular domain
         q = vec3(q.x.rem_euclid(1.0) - 0.5 * 1.0, q.y, q.z); // repetition
 
         d3 = sd_capped_cylinder(
@@ -325,9 +320,7 @@ impl State {
 
     fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         //self.time = self.inputs.time;
-        self.glow = (2.0 * (self.inputs.time * 0.7 - 5.0).sin())
-            .min(1.0)
-            .max(0.0);
+        self.glow = (2.0 * (self.inputs.time * 0.7 - 5.0).sin()).clamp(0.0, 1.0);
         self.bite = smoothstep(0.0, 1.0, 1.6 * (self.inputs.time * 0.7).sin());
         self.sphere_col = SPHERE_COL * self.glow;
 
@@ -345,9 +338,9 @@ impl State {
                 self.inputs.mouse.xy() / self.inputs.resolution.xy() - Vec2::splat(0.5);
             let mdis: f32 = 8.0 + 6.0 * mrel.y;
             cp = vec3(
-                mdis * (-mrel.x * PIH).cos(),
+                mdis * (-mrel.x * FRAC_PI_2).cos(),
                 4.0 * mrel.y,
-                mdis * (-mrel.x * PIH).sin(),
+                mdis * (-mrel.x * FRAC_PI_2).sin(),
             );
         }
 

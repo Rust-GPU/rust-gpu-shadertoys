@@ -85,10 +85,6 @@ const BACKGROUND: f32 = 0.7;
 const GLOW: f32 = 0.4;
 const GAMMA: f32 = 0.8;
 
-// Math constants
-const PI: f32 = 3.14159265359;
-const SQRT3: f32 = 1.73205080757;
-
 // PRNG (from https://www.shadertoy.com/view/4djSRW)
 fn rand(mut seed: Vec3) -> f32 {
     seed = (seed * vec3(5.3983, 5.4427, 6.9371)).fract_gl();
@@ -206,9 +202,9 @@ impl State {
             } else {
                 d = self.dist_scene(*p, &mut p2);
                 if voxelized > 0.5 {
-                    if d.x < SQRT3 * 0.5 {
-                        ray_length_check_voxel = ray_length + d.x.abs() + SQRT3 * 0.5;
-                        d.x = (ray_length_in_voxel - ray_length + DELTA).max(d.x - SQRT3 * 0.5);
+                    if d.x < SQRT_3 * 0.5 {
+                        ray_length_check_voxel = ray_length + d.x.abs() + SQRT_3 * 0.5;
+                        d.x = (ray_length_in_voxel - ray_length + DELTA).max(d.x - SQRT_3 * 0.5);
                     }
                 } else if d.x < DELTA {
                     break;

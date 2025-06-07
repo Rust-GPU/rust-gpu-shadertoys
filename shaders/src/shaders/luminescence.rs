@@ -93,10 +93,6 @@ const _LF: Vec3 = vec3(1.0, 0.0, 0.0);
 const UP: Vec3 = vec3(0.0, 1.0, 0.0);
 const _FW: Vec3 = vec3(0.0, 0.0, 1.0);
 
-const _HALF_PI: f32 = 1.570796326794896619;
-const PI: f32 = 3.141592653589793238;
-const TWO_PI: f32 = 6.283185307179586;
-
 const ACCENT_COLOR1: Vec3 = vec3(1.0, 0.1, 0.5);
 const SECOND_COLOR1: Vec3 = vec3(0.1, 0.5, 1.0);
 const ACCENT_COLOR2: Vec3 = vec3(1.0, 0.5, 0.1);
@@ -110,7 +106,7 @@ fn _n2(x: f32, y: f32) -> f32 {
 }
 
 fn n3(mut p: Vec3) -> f32 {
-    p = (p * 0.3183099 + Vec3::splat(0.1)).fract_gl();
+    p = (p * FRAC_1_PI + Vec3::splat(0.1)).fract_gl();
     p *= 17.0;
     (p.x * p.y * p.z * (p.x + p.y + p.z)).fract_gl()
 }
@@ -215,7 +211,7 @@ fn sd_sphere(p: Vec3, pos: Vec3, s: f32) -> f32 {
 
 // From http://mercury.sexy/hg_sdf
 fn p_mod_polar(p: &mut Vec2, repetitions: f32, fix: f32) -> Vec2 {
-    let angle: f32 = TWO_PI / repetitions;
+    let angle: f32 = TAU / repetitions;
     let mut a: f32 = p.y.atan2(p.x) + angle / 2.;
     let r: f32 = p.length();
     let _c: f32 = (a / angle).floor();
@@ -332,14 +328,13 @@ impl State {
         let n: f32 = n3(id);
 
         let mut o: De = De::default();
-        o.m = 0.0;
 
-        let mut x: f32 = (p.y + n * TWO_PI) * 1. + t;
+        let mut x: f32 = (p.y + n * TAU) * 1. + t;
         let r: f32 = 1.;
 
         let pump: f32 = (x + x.cos()).cos() + (2.0 * x).sin() * 0.2 + (4.0 * x).sin() * 0.02;
 
-        x = t + n * TWO_PI;
+        x = t + n * TAU;
         p.y -= ((x + x.cos()).cos() + (2.0 * x).sin() * 0.2) * 0.6;
         p = (p.xz() * (1.0 + pump * 0.2)).extend(p.y).xzy();
 
@@ -350,7 +345,7 @@ impl State {
         o.m = 1.0;
 
         if p.y < 0.5 {
-            let sway: f32 = (t + p.y + n * TWO_PI).sin() * smoothstep(0.5, -3.0, p.y) * n * 0.3;
+            let sway: f32 = (t + p.y + n * TAU).sin() * smoothstep(0.5, -3.0, p.y) * n * 0.3;
             p.x += sway * n; // add some sway to the tentacles
             p.z += sway * (1. - n);
 
@@ -466,21 +461,21 @@ impl State {
 
         p.y *= scale;
 
-        let mut s2: f32 = 5. * p.x / TWO_PI;
+        let mut s2: f32 = 5. * p.x / TAU;
         let _id: f32 = s2.floor();
         s2 = s2.fract_gl();
         let ep: Vec2 = vec2(s2 - 0.5, p.y - 0.6);
         let ed: f32 = ep.length();
         let e: f32 = b(0.35, 0.45, 0.05, ed);
 
-        let mut s: f32 = sin(s2 * TWO_PI * 15.0);
+        let mut s: f32 = sin(s2 * TAU * 15.0);
         s = s * s;
         s = s * s;
-        s *= smoothstep(1.4, -0.3, uv.y - (s2 * TWO_PI).cos() * 0.2 + 0.3)
+        s *= smoothstep(1.4, -0.3, uv.y - (s2 * TAU).cos() * 0.2 + 0.3)
             * smoothstep(-0.6, -0.3, uv.y);
 
         let t: f32 = self.inputs.time * 5.0;
-        let mask: f32 = sin(p.x * TWO_PI * 2.0 + t);
+        let mask: f32 = sin(p.x * TAU * 2.0 + t);
         s *= mask * mask * 2.0;
 
         s + e * pump * 2.0
@@ -595,7 +590,7 @@ impl State {
         self.accent = mix(ACCENT_COLOR1, ACCENT_COLOR2, sin(t * 15.456));
         self.bg = mix(SECOND_COLOR1, SECOND_COLOR2, sin(t * 7.345231));
 
-        let turn: f32 = (0.1 - m.x) * TWO_PI;
+        let turn: f32 = (0.1 - m.x) * TAU;
         let s: f32 = turn.sin();
         let c: f32 = turn.cos();
         let rot_x: Mat3 = Mat3::from_cols_array(&[c, 0.0, s, 0.0, 1.0, 0.0, s, 0.0, -c]);

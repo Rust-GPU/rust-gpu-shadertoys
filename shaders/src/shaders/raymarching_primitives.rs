@@ -91,7 +91,7 @@ fn sd_bounding_box(mut p: Vec3, b: Vec3, e: f32) -> f32 {
 fn sd_ellipsoid(p: Vec3, r: Vec3) -> f32 {
     let k0: f32 = (p / r).length();
     let k1: f32 = (p / (r * r)).length();
-    return k0 * (k0 - 1.0) / k1;
+    k0 * (k0 - 1.0) / k1
 }
 
 fn sd_torus(p: Vec3, t: Vec2) -> f32 {
@@ -193,7 +193,7 @@ fn sd_tri_prism(mut p: Vec3, mut h: Vec2) -> f32 {
     h.x *= 0.5 * k;
     p = (p.xy() / h.x).extend(p.z);
     p.x = p.x.abs() - 1.0;
-    p.y = p.y + 1.0 / k;
+    p.y += 1.0 / k;
     if p.x + k * p.y > 0.0 {
         p = (vec2(p.x - k * p.y, -k * p.x - p.y) / 2.0).extend(p.z);
     }
@@ -377,6 +377,7 @@ fn op_u(d1: Vec2, d2: Vec2) -> Vec2 {
 //------------------------------------------------------------------
 
 impl Inputs {
+    #[allow(unused)]
     fn zero(&self) -> i32 {
         let frame = self.frame;
         if frame >= 0 {
@@ -800,7 +801,7 @@ fn set_camera(ro: Vec3, ta: Vec3, cr: f32) -> Mat3 {
 }
 
 impl Inputs {
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let mo: Vec2 = self.mouse.xy() / self.resolution.xy();
         let time: f32 = 32.0 + self.time * 1.5;
 

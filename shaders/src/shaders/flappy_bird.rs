@@ -102,7 +102,7 @@ const PIPE_BOTTOM: f32 = 39.0; // px
 const PIPE_HOLE_HEIGHT: f32 = 12.0; // px
 
 // const PIPE_OUTLINE_COLOR: Vec4 = RGB(84, 56, 71);
-const PIPE_OUTLINE_COLOR: Vec4 = vec4(84 as f32 / 255.0, 56 as f32 / 255.0, 71 as f32 / 255.0, 1.0);
+const PIPE_OUTLINE_COLOR: Vec4 = vec4(84.0 / 255.0, 56.0 / 255.0, 71.0 / 255.0, 1.0);
 
 // gameplay consts
 const HORZ_PIPE_DISTANCE: f32 = 100.0; // px;
@@ -1237,7 +1237,7 @@ impl State {
         }
     }
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let level_pixel: Vec2 = self.get_level_pixel(frag_coord);
 
         self.frag_color = rgb(113, 197, 207); // draw the blue sky background

@@ -69,7 +69,7 @@ impl Inputs {
         // equivalent optimized smooth interation count
         let sl: f32 = l - z.dot(z).log2().log2() + 4.0;
 
-        let al: f32 = smoothstep(-0.1, 0.0, (self.time * 0.5 * 6.2831).sin());
+        let al: f32 = smoothstep(-0.1, 0.0, (self.time * 0.5 * TAU).sin());
         mix(l, sl, al)
     }
 

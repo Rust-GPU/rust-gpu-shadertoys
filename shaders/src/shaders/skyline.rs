@@ -155,18 +155,6 @@ fn noise(uv: Vec3) -> f32 {
     )
 }
 
-const PI: f32 = 3.14159265;
-
-fn saturate_vec3(a: Vec3) -> Vec3 {
-    a.clamp(Vec3::ZERO, Vec3::ONE)
-}
-fn _saturate_vec2(a: Vec2) -> Vec2 {
-    a.clamp(Vec2::ZERO, Vec2::ONE)
-}
-fn saturate(a: f32) -> f32 {
-    a.clamp(0.0, 1.0)
-}
-
 impl<C0> State<C0> {
     // This function basically is a procedural environment map that makes the sun
     fn get_sun_color_small(&self, ray_dir: Vec3, sun_dir: Vec3) -> Vec3 {
@@ -440,7 +428,7 @@ impl<C0> State<C0> {
 
         rep.z += p2.x.floor(); // shift so less repitition between parallel blocks
         rep.x = repeat(p2.x - 0.5, 1.0); // repeat every block
-        rep.z = rep.z * rep.x.sign_gl(); // mirror but keep cars facing the right way
+        rep.z *= rep.x.sign_gl(); // mirror but keep cars facing the right way
         rep.x = (rep.x * rep.x.sign_gl()) - 0.09;
         rep.z -= car_time * cross_street; // make cars move
         let unique_id: f32 = (rep.z / repeat_dist).floor(); // each car gets a unique ID that we can use for colors
@@ -541,7 +529,7 @@ impl<C0: SampleCube> State<C0> {
 
             // debugging camera
             let mx: f32 = -self.inputs.mouse.x / self.inputs.resolution.x * PI * 2.0; // + localTime * 0.05;
-            let my: f32 = self.inputs.mouse.y / self.inputs.resolution.y * 3.14 * 0.5 + PI / 2.0; // + sin(localTime * 0.3)*0.8+0.1;//*PI/2.01;
+            let my: f32 = self.inputs.mouse.y / self.inputs.resolution.y * PI * 0.5 + PI / 2.0; // + sin(localTime * 0.3)*0.8+0.1;//*PI/2.01;
             cam_pos = vec3(my.cos() * mx.cos(), my.sin(), my.cos() * mx.sin()) * 7.35;
         //7.35
         } else {
@@ -1048,7 +1036,7 @@ impl<C0: SampleCube> State<C0> {
                     );
                 // don't antialias if only 1 sample.
                 if ANTIALIASING_SAMPLES == 1 {
-                    jittered = frag_coord
+                    jittered = frag_coord;
                 };
                 // Accumulate one pass of raytracing into our pixel value
                 final_color += self.ray_trace(jittered);

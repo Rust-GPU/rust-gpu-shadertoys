@@ -126,7 +126,7 @@ fn noise3(x: Vec3) -> f32 {
         hash4(Vec4::splat(n) + NC1),
         f.xxxx(),
     );
-    return mix(mix(s1.x, s1.y, f.y), mix(s1.z, s1.w, f.y), f.z);
+    mix(mix(s1.x, s1.y, f.y), mix(s1.z, s1.w, f.y), f.z)
 }
 fn noise3_2(x: Vec3) -> Vec2 {
     vec2(noise3(x), noise3(x + Vec3::splat(100.0)))
