@@ -1,0 +1,13 @@
+match_block_trailing_comma = true
+tab_spaces = 2
+condense_wildcard_suffixes = false
+newline_style = "Unix"
+
+# The options below are unstable
+unstable_features = true
+imports_granularity = "Crate"
+normalize_comments = false    # Often doesn't do what you want
+
+# these options seem poorly implemented and cause churn, so, try to avoid them
+# wrap_comments = true
+# comment_width = 100
