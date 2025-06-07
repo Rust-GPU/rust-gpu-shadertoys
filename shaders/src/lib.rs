@@ -75,7 +75,7 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
     let shader_input: ShaderInput;
     let shader_output = &mut ShaderResult { color: Vec4::ZERO };
 
-    if constants.grid == 0 {
+    if constants.grid_mode == 0 {
         shader_input = ShaderInput {
             resolution,
             time,

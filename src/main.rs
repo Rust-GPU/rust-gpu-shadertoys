@@ -29,9 +29,11 @@ struct ShaderToyApp {
     shader_module: Option<wgpu::ShaderModule>,
     close_requested: bool,
     start: Instant,
+
     // UI state
     grid_mode: bool,
     shader_to_show: u32,
+
     // Mouse state.
     cursor_x: f32,
     cursor_y: f32,
@@ -250,7 +252,7 @@ impl ShaderToyApp {
                 mouse_left_pressed: self.mouse_left_pressed as u32,
                 mouse_left_clicked: self.mouse_left_clicked as u32,
                 shader_to_show: self.shader_to_show,
-                grid: self.grid_mode as u32,
+                grid_mode: self.grid_mode as u32,
             };
             self.mouse_left_clicked = false;
             rpass.set_pipeline(self.render_pipeline.as_ref().unwrap());
