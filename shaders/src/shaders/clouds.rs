@@ -5,19 +5,19 @@ use crate::shader_prelude::*;
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition { name: "Clouds" };
 
 pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
-    let color = &mut render_result.color;
-    let &ShaderInput {
-        resolution,
-        time,
-        frag_coord,
-        ..
-    } = render_instruction;
-    Inputs { resolution, time }.main_image(color, frag_coord);
+  let color = &mut render_result.color;
+  let &ShaderInput {
+    resolution,
+    time,
+    frag_coord,
+    ..
+  } = render_instruction;
+  Inputs { resolution, time }.main_image(color, frag_coord);
 }
 
 struct Inputs {
-    resolution: Vec3,
-    time: f32,
+  resolution: Vec3,
+  time: f32,
 }
 
 const CLOUD_SCALE: f32 = 1.1;
@@ -33,122 +33,121 @@ const SKY_COLOUR2: Vec3 = vec3(0.4, 0.7, 1.0);
 const M: Mat2 = mat2(vec2(1.6, 1.2), vec2(-1.2, 1.6));
 
 fn hash(mut p: Vec2) -> Vec2 {
-    p = vec2(p.dot(vec2(127.1, 311.7)), p.dot(vec2(269.5, 183.3)));
-    Vec2::splat(-1.0) + 2.0 * (p.sin() * 43758.5453123).fract_gl()
+  p = vec2(p.dot(vec2(127.1, 311.7)), p.dot(vec2(269.5, 183.3)));
+  Vec2::splat(-1.0) + 2.0 * (p.sin() * 43758.5453123).fract_gl()
 }
 
 fn noise(p: Vec2) -> f32 {
-    const K1: f32 = 0.366025404; // (sqrt(3)-1)/2;
-    const K2: f32 = 0.211324865; // (3-sqrt(3))/6;
-    let i: Vec2 = (p + Vec2::splat((p.x + p.y) * K1)).floor();
-    let a: Vec2 = p - i + Vec2::splat((i.x + i.y) * K2);
-    let o: Vec2 = if a.x > a.y {
-        vec2(1.0, 0.0)
-    } else {
-        vec2(0.0, 1.0)
-    }; //vec2 of = 0.5 + 0.5*vec2(sign(a.x-a.y), sign(a.y-a.x));
-    let b: Vec2 = a - o + Vec2::splat(K2);
-    let c: Vec2 = a - Vec2::splat(1.0 - 2.0 * K2);
-    let h: Vec3 = (Vec3::splat(0.5) - vec3(a.dot(a), b.dot(b), c.dot(c))).max(Vec3::ZERO);
-    let n: Vec3 = (h * h * h * h)
-        * vec3(
-            a.dot(hash(i + Vec2::ZERO)),
-            b.dot(hash(i + o)),
-            c.dot(hash(i + Vec2::splat(1.0))),
-        );
-    n.dot(Vec3::splat(70.0))
+  const K1: f32 = 0.366025404; // (sqrt(3)-1)/2;
+  const K2: f32 = 0.211324865; // (3-sqrt(3))/6;
+  let i: Vec2 = (p + Vec2::splat((p.x + p.y) * K1)).floor();
+  let a: Vec2 = p - i + Vec2::splat((i.x + i.y) * K2);
+  let o: Vec2 = if a.x > a.y {
+    vec2(1.0, 0.0)
+  } else {
+    vec2(0.0, 1.0)
+  }; //vec2 of = 0.5 + 0.5*vec2(sign(a.x-a.y), sign(a.y-a.x));
+  let b: Vec2 = a - o + Vec2::splat(K2);
+  let c: Vec2 = a - Vec2::splat(1.0 - 2.0 * K2);
+  let h: Vec3 = (Vec3::splat(0.5) - vec3(a.dot(a), b.dot(b), c.dot(c))).max(Vec3::ZERO);
+  let n: Vec3 = (h * h * h * h)
+    * vec3(
+      a.dot(hash(i + Vec2::ZERO)),
+      b.dot(hash(i + o)),
+      c.dot(hash(i + Vec2::splat(1.0))),
+    );
+  n.dot(Vec3::splat(70.0))
 }
 
 fn fbm(mut n: Vec2) -> f32 {
-    let mut total: f32 = 0.0;
-    let mut amplitude: f32 = 0.1;
-    for _ in 0..7 {
-        total += noise(n) * amplitude;
-        let m = M;
-        n = m.transpose() * n;
-        amplitude *= 0.4;
-    }
-    total
+  let mut total: f32 = 0.0;
+  let mut amplitude: f32 = 0.1;
+  for _ in 0..7 {
+    total += noise(n) * amplitude;
+    let m = M;
+    n = m.transpose() * n;
+    amplitude *= 0.4;
+  }
+  total
 }
 
 // -----------------------------------------------
 
 impl Inputs {
-    fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
-        let p: Vec2 = frag_coord / self.resolution.xy();
-        let mut uv: Vec2 = p * vec2(self.resolution.x / self.resolution.y, 1.0);
-        let mut time: f32 = self.time * SPEED;
-        let q: f32 = fbm(uv * CLOUD_SCALE * 0.5);
+  fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    let p: Vec2 = frag_coord / self.resolution.xy();
+    let mut uv: Vec2 = p * vec2(self.resolution.x / self.resolution.y, 1.0);
+    let mut time: f32 = self.time * SPEED;
+    let q: f32 = fbm(uv * CLOUD_SCALE * 0.5);
 
-        //ridged noise shape
-        let mut r: f32 = 0.0;
-        uv *= CLOUD_SCALE;
-        uv -= Vec2::splat(q - time);
-        let mut weight: f32 = 0.8;
-        for _ in 0..8 {
-            r += (weight * noise(uv)).abs();
-            let m = M;
-            uv = m.transpose() * uv + Vec2::splat(time);
-            weight *= 0.7;
-        }
-
-        //noise shape
-        let mut f: f32 = 0.0;
-        uv = p * vec2(self.resolution.x / self.resolution.y, 1.0);
-        uv *= CLOUD_SCALE;
-        uv -= Vec2::splat(q - time);
-        weight = 0.7;
-        for _ in 0..8 {
-            f += weight * noise(uv);
-            let m = M;
-            uv = m.transpose() * uv + Vec2::splat(time);
-            weight *= 0.6;
-        }
-
-        f *= r + f;
-
-        //noise colour
-        let mut c: f32 = 0.0;
-        time = self.time * SPEED * 2.0;
-        uv = p * vec2(self.resolution.x / self.resolution.y, 1.0);
-        uv *= CLOUD_SCALE * 2.0;
-        uv -= Vec2::splat(q - time);
-        weight = 0.4;
-        for _ in 0..7 {
-            c += weight * noise(uv);
-            let m = M;
-            uv = m.transpose() * uv + Vec2::splat(time);
-            weight *= 0.6;
-        }
-
-        //noise ridge colour
-        let mut c1: f32 = 0.0;
-        time = self.time * SPEED * 3.0;
-        uv = p * vec2(self.resolution.x / self.resolution.y, 1.0);
-        uv *= CLOUD_SCALE * 3.0;
-        uv -= Vec2::splat(q - time);
-        weight = 0.4;
-        for _ in 0..7 {
-            c1 += (weight * noise(uv)).abs();
-            let m = M;
-            uv = m.transpose() * uv + Vec2::splat(time);
-            weight *= 0.6;
-        }
-
-        c += c1;
-
-        let skycolour: Vec3 = mix(SKY_COLOUR2, SKY_COLOUR1, p.y);
-        let cloudcolour: Vec3 =
-            vec3(1.1, 1.1, 0.9) * (CLOUD_DARK + CLOUD_LIGHT * c).clamp(0.0, 1.0);
-
-        f = CLOUD_COVER + CLOUD_ALPHA * f * r;
-
-        let result: Vec3 = mix(
-            skycolour,
-            (SKY_TINT * skycolour + cloudcolour).clamp(Vec3::ZERO, Vec3::splat(1.0)),
-            (f + c).clamp(0.0, 1.0),
-        );
-
-        *frag_color = result.extend(1.0);
+    //ridged noise shape
+    let mut r: f32 = 0.0;
+    uv *= CLOUD_SCALE;
+    uv -= Vec2::splat(q - time);
+    let mut weight: f32 = 0.8;
+    for _ in 0..8 {
+      r += (weight * noise(uv)).abs();
+      let m = M;
+      uv = m.transpose() * uv + Vec2::splat(time);
+      weight *= 0.7;
     }
+
+    //noise shape
+    let mut f: f32 = 0.0;
+    uv = p * vec2(self.resolution.x / self.resolution.y, 1.0);
+    uv *= CLOUD_SCALE;
+    uv -= Vec2::splat(q - time);
+    weight = 0.7;
+    for _ in 0..8 {
+      f += weight * noise(uv);
+      let m = M;
+      uv = m.transpose() * uv + Vec2::splat(time);
+      weight *= 0.6;
+    }
+
+    f *= r + f;
+
+    //noise colour
+    let mut c: f32 = 0.0;
+    time = self.time * SPEED * 2.0;
+    uv = p * vec2(self.resolution.x / self.resolution.y, 1.0);
+    uv *= CLOUD_SCALE * 2.0;
+    uv -= Vec2::splat(q - time);
+    weight = 0.4;
+    for _ in 0..7 {
+      c += weight * noise(uv);
+      let m = M;
+      uv = m.transpose() * uv + Vec2::splat(time);
+      weight *= 0.6;
+    }
+
+    //noise ridge colour
+    let mut c1: f32 = 0.0;
+    time = self.time * SPEED * 3.0;
+    uv = p * vec2(self.resolution.x / self.resolution.y, 1.0);
+    uv *= CLOUD_SCALE * 3.0;
+    uv -= Vec2::splat(q - time);
+    weight = 0.4;
+    for _ in 0..7 {
+      c1 += (weight * noise(uv)).abs();
+      let m = M;
+      uv = m.transpose() * uv + Vec2::splat(time);
+      weight *= 0.6;
+    }
+
+    c += c1;
+
+    let skycolour: Vec3 = mix(SKY_COLOUR2, SKY_COLOUR1, p.y);
+    let cloudcolour: Vec3 = vec3(1.1, 1.1, 0.9) * (CLOUD_DARK + CLOUD_LIGHT * c).clamp(0.0, 1.0);
+
+    f = CLOUD_COVER + CLOUD_ALPHA * f * r;
+
+    let result: Vec3 = mix(
+      skycolour,
+      (SKY_TINT * skycolour + cloudcolour).clamp(Vec3::ZERO, Vec3::splat(1.0)),
+      (f + c).clamp(0.0, 1.0),
+    );
+
+    *frag_color = result.extend(1.0);
+  }
 }

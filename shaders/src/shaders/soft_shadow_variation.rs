@@ -19,23 +19,23 @@
 use crate::shader_prelude::*;
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
-    name: "Soft Shadow Variation",
+  name: "Soft Shadow Variation",
 };
 
 pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
-    let color = &mut render_result.color;
-    let &ShaderInput {
-        resolution,
-        time,
-        frag_coord,
-        ..
-    } = render_instruction;
-    Inputs { resolution, time }.main_image(color, frag_coord);
+  let color = &mut render_result.color;
+  let &ShaderInput {
+    resolution,
+    time,
+    frag_coord,
+    ..
+  } = render_instruction;
+  Inputs { resolution, time }.main_image(color, frag_coord);
 }
 
 struct Inputs {
-    resolution: Vec3,
-    time: f32,
+  resolution: Vec3,
+  time: f32,
 }
 
 // make this 1 is your machine is too slow
@@ -44,187 +44,185 @@ const AA: usize = 2;
 //------------------------------------------------------------------
 
 fn sd_plane(p: Vec3) -> f32 {
-    p.y
+  p.y
 }
 
 fn sd_box(p: Vec3, b: Vec3) -> f32 {
-    let d: Vec3 = p.abs() - b;
-    d.x.max(d.y.max(d.z)).min(0.0) + d.max(Vec3::ZERO).length()
+  let d: Vec3 = p.abs() - b;
+  d.x.max(d.y.max(d.z)).min(0.0) + d.max(Vec3::ZERO).length()
 }
 
 //------------------------------------------------------------------
 
 fn map(pos: Vec3) -> f32 {
-    let qos: Vec3 = vec3((pos.x + 0.5).fract_gl() - 0.5, pos.y, pos.z);
-    sd_plane(pos - vec3(0.0, 0.00, 0.0))
-        .min(sd_box(qos - vec3(0.0, 0.25, 0.0), vec3(0.2, 0.5, 0.2)))
+  let qos: Vec3 = vec3((pos.x + 0.5).fract_gl() - 0.5, pos.y, pos.z);
+  sd_plane(pos - vec3(0.0, 0.00, 0.0)).min(sd_box(qos - vec3(0.0, 0.25, 0.0), vec3(0.2, 0.5, 0.2)))
 }
 
 //------------------------------------------------------------------
 
 fn calc_softshadow(ro: Vec3, rd: Vec3, mint: f32, tmax: f32, technique: bool) -> f32 {
-    let mut res: f32 = 1.0;
-    let mut t: f32 = mint;
-    let mut ph: f32 = 1e10; // big, such that y = 0 on the first iteration
-    for _ in 0..32 {
-        let h: f32 = map(ro + rd * t);
+  let mut res: f32 = 1.0;
+  let mut t: f32 = mint;
+  let mut ph: f32 = 1e10; // big, such that y = 0 on the first iteration
+  for _ in 0..32 {
+    let h: f32 = map(ro + rd * t);
 
-        // traditional technique
-        if !technique {
-            res = res.min(10.0 * h / t);
-        }
-        // improved technique
-        else {
-            // use this if you are getting artifact on the first iteration, or unroll the
-            // first iteration out of the loop
-            //float y = (i==0) ? 0.0 : h*h/(2.0*ph);
-
-            let y: f32 = h * h / (2.0 * ph);
-            let d: f32 = (h * h - y * y).sqrt();
-            res = res.min(10.0 * d / (t - y).max(0.0));
-            ph = h;
-        }
-        t += h;
-
-        if res < 0.0001 || t > tmax {
-            break;
-        }
+    // traditional technique
+    if !technique {
+      res = res.min(10.0 * h / t);
     }
-    res.clamp(0.0, 1.0)
+    // improved technique
+    else {
+      // use this if you are getting artifact on the first iteration, or unroll the
+      // first iteration out of the loop
+      //float y = (i==0) ? 0.0 : h*h/(2.0*ph);
+
+      let y: f32 = h * h / (2.0 * ph);
+      let d: f32 = (h * h - y * y).sqrt();
+      res = res.min(10.0 * d / (t - y).max(0.0));
+      ph = h;
+    }
+    t += h;
+
+    if res < 0.0001 || t > tmax {
+      break;
+    }
+  }
+  res.clamp(0.0, 1.0)
 }
 
 fn calc_normal(pos: Vec3) -> Vec3 {
-    let e: Vec2 = vec2(1.0, -1.0) * 0.5773 * 0.0005;
-    (e.xyy() * map(pos + e.xyy())
-        + e.yyx() * map(pos + e.yyx())
-        + e.yxy() * map(pos + e.yxy())
-        + e.xxx() * map(pos + e.xxx()))
-    .normalize()
+  let e: Vec2 = vec2(1.0, -1.0) * 0.5773 * 0.0005;
+  (e.xyy() * map(pos + e.xyy())
+    + e.yyx() * map(pos + e.yyx())
+    + e.yxy() * map(pos + e.yxy())
+    + e.xxx() * map(pos + e.xxx()))
+  .normalize()
 }
 
 fn cast_ray(ro: Vec3, rd: Vec3) -> f32 {
-    let mut tmin: f32 = 1.0;
-    let mut tmax: f32 = 20.0;
+  let mut tmin: f32 = 1.0;
+  let mut tmax: f32 = 20.0;
 
-    if true {
-        // bounding volume
-        let tp1: f32 = (0.0 - ro.y) / rd.y;
-        if tp1 > 0.0 {
-            tmax = tmax.min(tp1);
-        }
-        let tp2: f32 = (1.0 - ro.y) / rd.y;
-        if tp2 > 0.0 {
-            if ro.y > 1.0 {
-                tmin = tmin.max(tp2);
-            } else {
-                tmax = tmax.min(tp2);
-            }
-        }
+  if true {
+    // bounding volume
+    let tp1: f32 = (0.0 - ro.y) / rd.y;
+    if tp1 > 0.0 {
+      tmax = tmax.min(tp1);
     }
-    let mut t: f32 = tmin;
-    for _ in 0..64 {
-        let precis: f32 = 0.0005 * t;
-        let res: f32 = map(ro + rd * t);
-        if res < precis || t > tmax {
-            break;
-        }
-        t += res;
+    let tp2: f32 = (1.0 - ro.y) / rd.y;
+    if tp2 > 0.0 {
+      if ro.y > 1.0 {
+        tmin = tmin.max(tp2);
+      } else {
+        tmax = tmax.min(tp2);
+      }
     }
+  }
+  let mut t: f32 = tmin;
+  for _ in 0..64 {
+    let precis: f32 = 0.0005 * t;
+    let res: f32 = map(ro + rd * t);
+    if res < precis || t > tmax {
+      break;
+    }
+    t += res;
+  }
 
-    if t > tmax {
-        t = -1.0;
-    }
-    t
+  if t > tmax {
+    t = -1.0;
+  }
+  t
 }
 
 fn calc_ao(pos: Vec3, nor: Vec3) -> f32 {
-    let mut occ: f32 = 0.0;
-    let mut sca: f32 = 1.0;
-    for i in 0..5 {
-        let h: f32 = 0.001 + 0.15 * i as f32 / 4.0;
-        let d: f32 = map(pos + h * nor);
-        occ += (h - d) * sca;
-        sca *= 0.95;
-    }
-    (1.0 - 1.5 * occ).clamp(0.0, 1.0)
+  let mut occ: f32 = 0.0;
+  let mut sca: f32 = 1.0;
+  for i in 0..5 {
+    let h: f32 = 0.001 + 0.15 * i as f32 / 4.0;
+    let d: f32 = map(pos + h * nor);
+    occ += (h - d) * sca;
+    sca *= 0.95;
+  }
+  (1.0 - 1.5 * occ).clamp(0.0, 1.0)
 }
 
 fn render(ro: Vec3, rd: Vec3, technique: bool) -> Vec3 {
-    let mut col: Vec3 = Vec3::ZERO;
-    let t: f32 = cast_ray(ro, rd);
+  let mut col: Vec3 = Vec3::ZERO;
+  let t: f32 = cast_ray(ro, rd);
 
-    if t > -0.5 {
-        let pos: Vec3 = ro + t * rd;
-        let nor: Vec3 = calc_normal(pos);
+  if t > -0.5 {
+    let pos: Vec3 = ro + t * rd;
+    let nor: Vec3 = calc_normal(pos);
 
-        // material
-        let mate: Vec3 = Vec3::splat(0.3);
-        // key light
-        let lig: Vec3 = vec3(-0.1, 0.3, 0.6).normalize();
-        let hal: Vec3 = (lig - rd).normalize();
-        let dif: f32 =
-            nor.dot(lig).clamp(0.0, 1.0) * calc_softshadow(pos, lig, 0.01, 3.0, technique);
+    // material
+    let mate: Vec3 = Vec3::splat(0.3);
+    // key light
+    let lig: Vec3 = vec3(-0.1, 0.3, 0.6).normalize();
+    let hal: Vec3 = (lig - rd).normalize();
+    let dif: f32 = nor.dot(lig).clamp(0.0, 1.0) * calc_softshadow(pos, lig, 0.01, 3.0, technique);
 
-        let spe: f32 = nor.dot(hal).clamp(0.0, 1.0).powf(16.0)
-            * dif
-            * (0.04 + 0.96 * (1.0 + hal.dot(rd)).clamp(0.0, 1.0).powf(5.0));
+    let spe: f32 = nor.dot(hal).clamp(0.0, 1.0).powf(16.0)
+      * dif
+      * (0.04 + 0.96 * (1.0 + hal.dot(rd)).clamp(0.0, 1.0).powf(5.0));
 
-        col = mate * 4.0 * dif * vec3(1.00, 0.70, 0.5);
-        col += 12.0 * spe * vec3(1.00, 0.70, 0.5);
+    col = mate * 4.0 * dif * vec3(1.00, 0.70, 0.5);
+    col += 12.0 * spe * vec3(1.00, 0.70, 0.5);
 
-        // ambient light
-        let occ: f32 = calc_ao(pos, nor);
-        let amb: f32 = (0.5 + 0.5 * nor.y).clamp(0.0, 1.0);
-        col += mate * amb * occ * vec3(0.0, 0.08, 0.1);
+    // ambient light
+    let occ: f32 = calc_ao(pos, nor);
+    let amb: f32 = (0.5 + 0.5 * nor.y).clamp(0.0, 1.0);
+    col += mate * amb * occ * vec3(0.0, 0.08, 0.1);
 
-        // fog
-        col *= (-0.0005 * t * t * t).exp();
-    }
+    // fog
+    col *= (-0.0005 * t * t * t).exp();
+  }
 
-    col
+  col
 }
 
 fn set_camera(ro: Vec3, ta: Vec3, cr: f32) -> Mat3 {
-    let cw: Vec3 = (ta - ro).normalize();
-    let cp: Vec3 = vec3(cr.sin(), cr.cos(), 0.0);
-    let cu: Vec3 = cw.cross(cp).normalize();
-    let cv: Vec3 = cu.cross(cw).normalize();
-    Mat3::from_cols(cu, cv, cw)
+  let cw: Vec3 = (ta - ro).normalize();
+  let cp: Vec3 = vec3(cr.sin(), cr.cos(), 0.0);
+  let cu: Vec3 = cw.cross(cp).normalize();
+  let cv: Vec3 = cu.cross(cw).normalize();
+  Mat3::from_cols(cu, cv, cw)
 }
 
 impl Inputs {
-    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
-        // camera
-        let an: f32 = 12.0 - (0.1 * self.time).sin();
-        let ro: Vec3 = vec3(3.0 * (0.1 * an).cos(), 1.0, -3.0 * (0.1 * an).sin());
-        let ta: Vec3 = vec3(0.0, -0.4, 0.0);
-        // camera-to-world transformation
-        let ca: Mat3 = set_camera(ro, ta, 0.0);
+  fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    // camera
+    let an: f32 = 12.0 - (0.1 * self.time).sin();
+    let ro: Vec3 = vec3(3.0 * (0.1 * an).cos(), 1.0, -3.0 * (0.1 * an).sin());
+    let ta: Vec3 = vec3(0.0, -0.4, 0.0);
+    // camera-to-world transformation
+    let ca: Mat3 = set_camera(ro, ta, 0.0);
 
-        let technique = (self.time / 2.0).fract_gl() > 0.5;
+    let technique = (self.time / 2.0).fract_gl() > 0.5;
 
-        let mut tot: Vec3 = Vec3::ZERO;
+    let mut tot: Vec3 = Vec3::ZERO;
 
-        for m in 0..AA {
-            for n in 0..AA {
-                // pixel coordinates
-                let o: Vec2 = vec2(m as f32, n as f32) / AA as f32 - Vec2::splat(0.5);
-                let p: Vec2 = (-self.resolution.xy() + 2.0 * (frag_coord + o)) / self.resolution.y;
+    for m in 0..AA {
+      for n in 0..AA {
+        // pixel coordinates
+        let o: Vec2 = vec2(m as f32, n as f32) / AA as f32 - Vec2::splat(0.5);
+        let p: Vec2 = (-self.resolution.xy() + 2.0 * (frag_coord + o)) / self.resolution.y;
 
-                // ray direction
-                let rd: Vec3 = ca * p.extend(2.0).normalize();
+        // ray direction
+        let rd: Vec3 = ca * p.extend(2.0).normalize();
 
-                // render
-                let mut col: Vec3 = render(ro, rd, technique);
+        // render
+        let mut col: Vec3 = render(ro, rd, technique);
 
-                // gamma
-                col = col.powf(0.4545);
+        // gamma
+        col = col.powf(0.4545);
 
-                tot += col;
-            }
-        }
-        tot /= (AA * AA) as f32;
-
-        *frag_color = tot.extend(1.0);
+        tot += col;
+      }
     }
+    tot /= (AA * AA) as f32;
+
+    *frag_color = tot.extend(1.0);
+  }
 }

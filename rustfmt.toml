@@ -1,5 +1,5 @@
 match_block_trailing_comma = true
-tab_spaces = 4
+tab_spaces = 2
 condense_wildcard_suffixes = false
 newline_style = "Unix"
 

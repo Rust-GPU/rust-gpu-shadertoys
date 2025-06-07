@@ -13,23 +13,23 @@
 use crate::shader_prelude::*;
 
 pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
-    name: "Tileable Water Caustic",
+  name: "Tileable Water Caustic",
 };
 
 pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
-    let color = &mut render_result.color;
-    let &ShaderInput {
-        resolution,
-        time,
-        frag_coord,
-        ..
-    } = render_instruction;
-    Inputs { resolution, time }.main_image(color, frag_coord);
+  let color = &mut render_result.color;
+  let &ShaderInput {
+    resolution,
+    time,
+    frag_coord,
+    ..
+  } = render_instruction;
+  Inputs { resolution, time }.main_image(color, frag_coord);
 }
 
 struct Inputs {
-    resolution: Vec3,
-    time: f32,
+  resolution: Vec3,
+  time: f32,
 }
 
 // Redefine below to see the tiling...
@@ -39,52 +39,53 @@ use core::f32::consts::TAU;
 const MAX_ITER: usize = 5;
 
 impl Inputs {
-    fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
-        let time: f32 = self.time * 0.5 + 23.0;
-        // uv should be the 0-1 uv of texture...
-        let mut uv: Vec2 = frag_coord / self.resolution.xy();
+  fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    let time: f32 = self.time * 0.5 + 23.0;
+    // uv should be the 0-1 uv of texture...
+    let mut uv: Vec2 = frag_coord / self.resolution.xy();
 
-        let p: Vec2 = if SHOW_TILING {
-            (uv * TAU * 2.0).rem_euclid(Vec2::splat(TAU)) - Vec2::splat(250.0)
-        } else {
-            (uv * TAU).rem_euclid(Vec2::splat(TAU)) - Vec2::splat(250.0)
-        };
-        let mut i: Vec2 = p;
-        let mut c: f32 = 1.0;
-        let inten: f32 = 0.005;
+    let p: Vec2 = if SHOW_TILING {
+      (uv * TAU * 2.0).rem_euclid(Vec2::splat(TAU)) - Vec2::splat(250.0)
+    } else {
+      (uv * TAU).rem_euclid(Vec2::splat(TAU)) - Vec2::splat(250.0)
+    };
+    let mut i: Vec2 = p;
+    let mut c: f32 = 1.0;
+    let inten: f32 = 0.005;
 
-        for n in 0..MAX_ITER {
-            let t: f32 = time * (1.1 - (3.5 / (n + 1) as f32));
-            i = p + vec2(
-                (t - i.x).cos() + (t + i.y).sin(),
-                (t - i.y).sin() + (t + i.x).cos(),
-            );
-            c += 1.0
-                / vec2(
-                    p.x / ((i.x + t).sin() / inten),
-                    p.y / ((i.y + t).cos() / inten),
-                )
-                .length();
-        }
-        c /= MAX_ITER as f32;
-        c = 1.17 - c.powf(1.4);
-        let mut colour: Vec3 = Vec3::splat(c.abs().powf(8.0));
-        colour = (colour + vec3(0.0, 0.35, 0.5)).clamp(Vec3::ZERO, Vec3::ONE);
-
-        if SHOW_TILING {
-            let pixel: Vec2 = 2.0 / self.resolution.xy();
-            uv *= 2.0;
-
-            let f: f32 = (self.time * 0.5).rem_euclid(2.0).floor(); // Flash value.
-            let first: Vec2 = pixel.step(uv) * f; // Rule out first screen pixels and flash.
-            uv = uv.fract_gl().step(pixel); // Add one line of pixels per tile.
-            colour = mix(
-                colour,
-                vec3(1.0, 1.0, 0.0),
-                (uv.x + uv.y) * first.x * first.y,
-            ); // Yellow line
-        }
-
-        *frag_color = colour.extend(1.0);
+    for n in 0..MAX_ITER {
+      let t: f32 = time * (1.1 - (3.5 / (n + 1) as f32));
+      i = p
+        + vec2(
+          (t - i.x).cos() + (t + i.y).sin(),
+          (t - i.y).sin() + (t + i.x).cos(),
+        );
+      c += 1.0
+        / vec2(
+          p.x / ((i.x + t).sin() / inten),
+          p.y / ((i.y + t).cos() / inten),
+        )
+        .length();
     }
+    c /= MAX_ITER as f32;
+    c = 1.17 - c.powf(1.4);
+    let mut colour: Vec3 = Vec3::splat(c.abs().powf(8.0));
+    colour = (colour + vec3(0.0, 0.35, 0.5)).clamp(Vec3::ZERO, Vec3::ONE);
+
+    if SHOW_TILING {
+      let pixel: Vec2 = 2.0 / self.resolution.xy();
+      uv *= 2.0;
+
+      let f: f32 = (self.time * 0.5).rem_euclid(2.0).floor(); // Flash value.
+      let first: Vec2 = pixel.step(uv) * f; // Rule out first screen pixels and flash.
+      uv = uv.fract_gl().step(pixel); // Add one line of pixels per tile.
+      colour = mix(
+        colour,
+        vec3(1.0, 1.0, 0.0),
+        (uv.x + uv.y) * first.x * first.y,
+      ); // Yellow line
+    }
+
+    *frag_color = colour.extend(1.0);
+  }
 }
