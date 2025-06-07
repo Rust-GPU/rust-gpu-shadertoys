@@ -1,15 +1,16 @@
 use futures::executor::block_on;
 use ouroboros::self_referencing;
-use std::error::Error;
-use std::time::Instant;
-use wgpu::{self, InstanceDescriptor};
-use wgpu::{include_spirv, include_spirv_raw};
-use winit::application::ApplicationHandler;
-use winit::dpi::LogicalSize;
-use winit::event::{ElementState, MouseButton, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::keyboard::NamedKey;
-use winit::window::{Window, WindowAttributes, WindowId};
+use shadertoys_shaders::{shaders::SHADER_DEFINITIONS, shared_data::ShaderConstants};
+use std::{error::Error, time::Instant};
+use wgpu::{self, include_spirv, include_spirv_raw, InstanceDescriptor};
+use winit::{
+    application::ApplicationHandler,
+    dpi::LogicalSize,
+    event::{ElementState, KeyEvent, MouseButton, WindowEvent},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    keyboard::{KeyCode, NamedKey, PhysicalKey},
+    window::{Window, WindowAttributes, WindowId},
+};
 
 #[self_referencing]
 struct WindowSurface {
@@ -28,6 +29,9 @@ struct ShaderToyApp {
     shader_module: Option<wgpu::ShaderModule>,
     close_requested: bool,
     start: Instant,
+    // UI state
+    grid_mode: bool,
+    shader_to_show: u32,
     // Mouse state.
     cursor_x: f32,
     cursor_y: f32,
@@ -58,6 +62,8 @@ impl Default for ShaderToyApp {
             drag_end_y: 0.0,
             mouse_left_pressed: false,
             mouse_left_clicked: false,
+            shader_to_show: 0,
+            grid_mode: false,
         }
     }
 }
@@ -132,7 +138,7 @@ impl ShaderToyApp {
             bind_group_layouts: &[],
             push_constant_ranges: &[wgpu::PushConstantRange {
                 stages: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                range: 0..std::mem::size_of::<shared::ShaderConstants>() as u32,
+                range: 0..std::mem::size_of::<ShaderConstants>() as u32,
             }],
         });
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -201,7 +207,7 @@ impl ShaderToyApp {
             Err(e) => {
                 eprintln!("Failed to acquire texture: {:?}", e);
                 return;
-            }
+            },
         };
         let view = frame
             .texture
@@ -231,7 +237,7 @@ impl ShaderToyApp {
                 0.0,
                 1.0,
             );
-            let push_constants = shared::ShaderConstants {
+            let push_constants = ShaderConstants {
                 width: current_size.width,
                 height: current_size.height,
                 time: self.start.elapsed().as_secs_f32(),
@@ -243,6 +249,8 @@ impl ShaderToyApp {
                 drag_end_y: self.drag_end_y,
                 mouse_left_pressed: self.mouse_left_pressed as u32,
                 mouse_left_clicked: self.mouse_left_clicked as u32,
+                shader_to_show: self.shader_to_show,
+                grid: self.grid_mode as u32,
             };
             self.mouse_left_clicked = false;
             rpass.set_pipeline(self.render_pipeline.as_ref().unwrap());
@@ -285,7 +293,7 @@ impl ApplicationHandler for ShaderToyApp {
                         }
                     }
                 }
-            }
+            },
             WindowEvent::PointerMoved { position, .. } => {
                 self.cursor_x = position.x as f32;
                 self.cursor_y = position.y as f32;
@@ -293,7 +301,7 @@ impl ApplicationHandler for ShaderToyApp {
                     self.drag_end_x = self.cursor_x;
                     self.drag_end_y = self.cursor_y;
                 }
-            }
+            },
             WindowEvent::PointerButton { state, button, .. } => {
                 if button.mouse_button() == MouseButton::Left {
                     self.mouse_left_pressed = state == ElementState::Pressed;
@@ -305,20 +313,59 @@ impl ApplicationHandler for ShaderToyApp {
                         self.mouse_left_clicked = true;
                     }
                 }
-            }
+            },
             WindowEvent::MouseWheel { delta, .. } => {
-                if let winit::event::MouseScrollDelta::LineDelta(x, y) = delta {
-                    self.drag_end_x = x * 0.1;
-                    self.drag_end_y = y * 0.1;
+                if let winit::event::MouseScrollDelta::LineDelta(delta_x, delta_y) = delta {
+                    self.drag_end_x = delta_x * 0.1;
+                    self.drag_end_y = delta_y * 0.1;
                 }
-            }
-            WindowEvent::KeyboardInput { event, .. } => {
-                if event.logical_key == NamedKey::Escape && event.state == ElementState::Pressed {
+            },
+            WindowEvent::KeyboardInput { event, .. } => match event {
+                KeyEvent {
+                    state: ElementState::Pressed,
+                    ..
+                } if event.logical_key == NamedKey::Escape => {
                     self.close_requested = true;
-                }
-            }
+                },
+                KeyEvent {
+                    state: ElementState::Pressed,
+                    physical_key: PhysicalKey::Code(KeyCode::KeyE),
+                    ..
+                } => {
+                    self.grid_mode = false;
+                    self.shader_to_show =
+                        (self.shader_to_show + 1) % SHADER_DEFINITIONS.len() as u32;
+                    println!(
+                        "Shader to show: {}",
+                        SHADER_DEFINITIONS[self.shader_to_show as usize].name
+                    );
+                },
+                KeyEvent {
+                    state: ElementState::Pressed,
+                    physical_key: PhysicalKey::Code(KeyCode::KeyQ),
+                    ..
+                } => {
+                    self.grid_mode = false;
+                    self.shader_to_show = (self.shader_to_show + SHADER_DEFINITIONS.len() as u32
+                        - 1)
+                        % SHADER_DEFINITIONS.len() as u32;
+                    println!(
+                        "Shader to show: {}",
+                        SHADER_DEFINITIONS[self.shader_to_show as usize].name
+                    );
+                },
+                KeyEvent {
+                    state: ElementState::Pressed,
+                    physical_key: PhysicalKey::Code(KeyCode::KeyG),
+                    ..
+                } => {
+                    self.grid_mode = !self.grid_mode;
+                    println!("Grid mode: {}", self.grid_mode);
+                },
+                _ => {},
+            },
             WindowEvent::RedrawRequested => self.render(),
-            _ => {}
+            _ => {},
         }
         if self.close_requested {
             event_loop.exit();

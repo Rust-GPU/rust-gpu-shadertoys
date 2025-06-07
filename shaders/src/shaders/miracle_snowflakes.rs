@@ -10,20 +10,33 @@
 //! */
 //! ```
 
-use shared::*;
-use spirv_std::glam::{
-    vec2, vec3, vec4, Mat3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
+use crate::shader_prelude::*;
+
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Playing Marble",
 };
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    State::new(Inputs {
+        resolution,
+        time,
+        mouse,
+    })
+    .main_image(color, frag_coord);
+}
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
 }
 
 const ITERATIONS: u32 = 15;
@@ -33,7 +46,7 @@ const LAYERSBLOB: i32 = 20;
 const STEP: f32 = 1.0;
 const FAR: f32 = 10000.0;
 
-pub struct State {
+struct State {
     inputs: Inputs,
     radius: f32,
     zoom: f32,
@@ -51,8 +64,9 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(inputs: Inputs) -> Self {
-        State {
+    #[must_use]
+    fn new(inputs: Inputs) -> Self {
+        Self {
             inputs,
             radius: 0.25, // radius of Snowflakes. maximum for this demo 0.25.
             zoom: 4.0,    // use this to change details. optimal 0.1 - 4.0.
@@ -241,7 +255,7 @@ impl State {
         color
     }
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let time: f32 = self.inputs.time * 0.2; //*0.1;
         self.res = 1.0 / self.inputs.resolution.y;
         let p: Vec2 = (-self.inputs.resolution.xy() + 2.0 * frag_coord) * self.res;

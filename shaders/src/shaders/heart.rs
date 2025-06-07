@@ -6,21 +6,28 @@
 //! // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 //! ```
 
-use shared::*;
-use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition { name: "Hearts" };
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    Inputs { resolution, time }.main_image(color, frag_coord);
+}
+
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
 }
 
 impl Inputs {
-    pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let mut p: Vec2 =
             (2.0 * frag_coord - self.resolution.xy()) / (self.resolution.y.min(self.resolution.x));
 

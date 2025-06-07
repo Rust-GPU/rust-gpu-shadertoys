@@ -5,23 +5,36 @@
 //! // On/Off Spikes, fragment shader by movAX13h, oct 2014
 //! ```
 
-use shared::*;
-use spirv_std::glam::{
-    vec2, vec3, Mat2, Mat3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
+use crate::shader_prelude::*;
+
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "On/Off Spikes",
 };
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    State::new(Inputs {
+        resolution,
+        time,
+        mouse,
+    })
+    .main_image(color, frag_coord);
 }
 
-pub struct State {
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
+}
+
+struct State {
     inputs: Inputs,
 
     // globals
@@ -34,8 +47,9 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(inputs: Inputs) -> State {
-        State {
+    #[must_use]
+    pub fn new(inputs: Inputs) -> Self {
+        Self {
             inputs,
 
             glow: 0.0,
@@ -309,7 +323,7 @@ impl State {
         hit.color + diffuse * Vec3::splat(0.9) + specular * Vec3::splat(1.0)
     }
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         //self.time = self.inputs.time;
         self.glow = (2.0 * (self.inputs.time * 0.7 - 5.0).sin())
             .min(1.0)

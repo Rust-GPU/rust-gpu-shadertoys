@@ -14,21 +14,36 @@
 //! */
 //! ```
 
-use shared::*;
-use spirv_std::glam::{vec2, vec3, Mat3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Voxel PacMan",
+};
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    State::new(Inputs {
+        resolution,
+        time,
+        mouse,
+    })
+    .main_image(color, frag_coord);
 }
 
-pub struct State {
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
+}
+
+struct State {
     inputs: Inputs,
 
     // Global variable to handle the glow effect
@@ -36,8 +51,9 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(inputs: Inputs) -> State {
-        State {
+    #[must_use]
+    fn new(inputs: Inputs) -> Self {
+        Self {
             inputs,
 
             glow_counter: 0.0,
@@ -253,7 +269,7 @@ fn hsv2rgb(mut hsv: Vec3) -> Vec3 {
 
 impl State {
     // Main function
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         // Get the fragment
         let frag: Vec2 =
             (2.0 * frag_coord - self.inputs.resolution.xy()) / self.inputs.resolution.y;

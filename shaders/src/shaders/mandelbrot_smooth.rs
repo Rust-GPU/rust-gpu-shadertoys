@@ -10,17 +10,26 @@
 //! // http://iquilezles.org/www/articles/mset_smooth/mset_smooth.htm
 //! ```
 
-use shared::*;
-use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Mandelbrot Smooth",
+};
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    Inputs { resolution, time }.main_image(color, frag_coord);
+}
+
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
 }
 
 // increase this if you have a very fast GPU
@@ -64,7 +73,7 @@ impl Inputs {
         mix(l, sl, al)
     }
 
-    pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let mut col: Vec3 = Vec3::ZERO;
 
         for m in 0..AA {

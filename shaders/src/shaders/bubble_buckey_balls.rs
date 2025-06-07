@@ -8,24 +8,43 @@
 //! // Tested on Nvidia GTX 780 Windows 7
 //! ```
 
-use crate::SampleCube;
-use shared::*;
-use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Bubble Buckey Balls",
+};
 
-pub struct Inputs<C0, C1> {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
-    pub channel0: C0,
-    pub channel1: C1,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    State::new(Inputs {
+        resolution,
+        time,
+        mouse,
+        channel0: RgbCube {
+            alpha: 1.0,
+            intensity: 0.5,
+        },
+        channel1: ConstantColor { color: Vec4::ONE },
+    })
+    .main_image(color, frag_coord);
 }
 
-pub struct State<C0, C1> {
+struct Inputs<C0, C1> {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
+    channel0: C0,
+    channel1: C1,
+}
+
+struct State<C0, C1> {
     inputs: Inputs<C0, C1>,
 
     cam_point_at: Vec3,
@@ -35,8 +54,9 @@ pub struct State<C0, C1> {
 }
 
 impl<C0, C1> State<C0, C1> {
-    pub fn new(inputs: Inputs<C0, C1>) -> Self {
-        State {
+    #[must_use]
+    fn new(inputs: Inputs<C0, C1>) -> Self {
+        Self {
             inputs,
             cam_point_at: Vec3::ZERO,
             cam_origin: Vec3::ZERO,
@@ -383,8 +403,9 @@ struct SurfaceData {
 }
 
 impl SurfaceData {
+    #[must_use]
     fn init_surf(p: Vec3, n: Vec3) -> Self {
-        SurfaceData {
+        Self {
             point: p,
             normal: n,
             basecolor: Vec3::ZERO,
@@ -563,7 +584,7 @@ impl<C0: SampleCube, C1: SampleCube> State<C0, C1> {
     // **************************************************************************
     // MAIN
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         // ----------------------------------------------------------------------
         // Animate globals
 

@@ -10,25 +10,39 @@
 //! -Otavio Good
 //! */
 //! ```
+use crate::shader_prelude::*;
 
-use crate::SampleCube;
-use shared::*;
-use spirv_std::arch::Derivative;
-use spirv_std::glam::{vec2, vec3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition { name: "Skyline" };
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-
-pub struct Inputs<C0> {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
-    pub channel0: C0,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    State::new(Inputs {
+        resolution,
+        time,
+        mouse,
+        channel0: RgbCube {
+            alpha: 1.0,
+            intensity: 1.0,
+        },
+    })
+    .main_image(color, frag_coord);
 }
 
-pub struct State<C0> {
+struct Inputs<C0> {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
+    channel0: C0,
+}
+
+struct State<C0> {
     inputs: Inputs<C0>,
 
     // --------------------------------------------------------
@@ -49,8 +63,9 @@ pub struct State<C0> {
 }
 
 impl<C0> State<C0> {
-    pub fn new(inputs: Inputs<C0>) -> Self {
-        State {
+    #[must_use]
+    fn new(inputs: Inputs<C0>) -> Self {
+        Self {
             inputs,
 
             local_time: 0.0,
@@ -1009,7 +1024,7 @@ impl<C0: SampleCube> State<C0> {
         }
     }
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         if NON_REALTIME_HQ_RENDER {
             // Optionally render a non-realtime scene with high quality
             self.block_render(frag_coord);

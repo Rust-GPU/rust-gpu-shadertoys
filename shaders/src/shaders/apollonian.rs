@@ -10,28 +10,44 @@
 //! // Coloring and fake occlusions are done by orbit trapping, as usual.
 //! ```
 
-use shared::*;
-use spirv_std::glam::{vec2, vec3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Apollonian Fractal",
+};
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    State::new(Inputs {
+        resolution,
+        time,
+        mouse,
+    })
+    .main_image(color, frag_coord);
 }
 
-pub struct State {
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
+}
+
+struct State {
     inputs: Inputs,
     orb: Vec4,
 }
 
 impl State {
-    pub fn new(inputs: Inputs) -> Self {
-        State {
+    #[must_use]
+    fn new(inputs: Inputs) -> Self {
+        Self {
             inputs,
             orb: Vec4::ZERO,
         }
@@ -132,7 +148,7 @@ impl State {
         col.sqrt()
     }
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let time: f32 = self.inputs.time * 0.25 + 0.01 * self.inputs.mouse.x;
         let anim: f32 = 1.1 + 0.5 * smoothstep(-0.3, 0.3, (0.1 * self.inputs.time).cos());
         let mut tot: Vec3 = Vec3::ZERO;
@@ -169,7 +185,7 @@ impl State {
         *frag_color = tot.extend(1.0);
     }
 
-    pub fn main_vr(
+    fn _main_vr(
         &mut self,
         frag_color: &mut Vec4,
         _frag_coord: Vec2,

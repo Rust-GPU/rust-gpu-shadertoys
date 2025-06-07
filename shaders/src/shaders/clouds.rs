@@ -1,11 +1,23 @@
 //! Ported to Rust from <https://www.shadertoy.com/view/4tdSWr>
 
-use shared::*;
-use spirv_std::glam::{mat2, vec2, vec3, Mat2, Vec2, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition { name: "Clouds" };
+
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    Inputs { resolution, time }.main_image(color, frag_coord);
+}
+
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
 }
 
 const CLOUD_SCALE: f32 = 1.1;
@@ -62,7 +74,7 @@ fn fbm(mut n: Vec2) -> f32 {
 // -----------------------------------------------
 
 impl Inputs {
-    pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let p: Vec2 = frag_coord / self.resolution.xy();
         let mut uv: Vec2 = p * vec2(self.resolution.x / self.resolution.y, 1.0);
         let mut time: f32 = self.time * SPEED;

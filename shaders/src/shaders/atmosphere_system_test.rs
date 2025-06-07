@@ -10,27 +10,44 @@
 //! // ----------------------------------------------------------------------------
 //! ```
 
-use spirv_std::glam::{vec2, vec3, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Atmosphere System Test",
+};
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    State::new(Inputs {
+        resolution,
+        time,
+        mouse,
+    })
+    .main_image(color, frag_coord);
 }
 
-pub struct State {
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
+}
+
+struct State {
     inputs: Inputs,
     sun_dir: Vec3,
 }
 
 impl State {
-    pub fn new(inputs: Inputs) -> Self {
-        State {
+    #[must_use]
+    fn new(inputs: Inputs) -> Self {
+        Self {
             inputs,
             sun_dir: vec3(0.0, 1.0, 0.0),
         }
@@ -238,9 +255,9 @@ impl State {
         SUN_POWER * (sum_r * phase_r * BETA_R + sum_m * phase_m * BETA_M)
     }
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let aspect_ratio: Vec2 = vec2(self.inputs.resolution.x / self.inputs.resolution.y, 1.0);
-        let fov: f32 = 45.0.to_radians().tan();
+        let fov: f32 = 45.0_f32.to_radians().tan();
         let point_ndc: Vec2 = frag_coord / self.inputs.resolution.xy();
         let point_cam: Vec3 = ((2.0 * point_ndc - Vec2::ONE) * aspect_ratio * fov).extend(-1.0);
 

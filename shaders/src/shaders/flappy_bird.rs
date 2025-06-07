@@ -7,28 +7,39 @@
 //! // Based on the "Super Mario Bros" shader by HLorenzi
 //! // https://www.shadertoy.com/view/Msj3zD
 //! ```
+#![allow(clippy::float_cmp)]
+use crate::shader_prelude::*;
 
-use spirv_std::glam::{vec2, vec4, Vec2, Vec3, Vec4};
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Flappy Bird",
+};
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use {shared::*, spirv_std::num_traits::Float};
-
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    State::new(Inputs { resolution, time }).main_image(color, frag_coord);
 }
 
-pub struct State {
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+}
+
+struct State {
     inputs: Inputs,
 
     frag_color: Vec4,
 }
 
 impl State {
-    pub fn new(inputs: Inputs) -> State {
-        State {
+    #[must_use]
+    fn new(inputs: Inputs) -> Self {
+        Self {
             inputs,
 
             frag_color: Vec4::ZERO,

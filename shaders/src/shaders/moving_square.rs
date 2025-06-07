@@ -1,15 +1,25 @@
 //! Ported to Rust from <https://www.shadertoy.com/view/llXSzX>
 
-use spirv_std::glam::{vec3, Mat2, Vec2, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Moving Square",
+};
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    Inputs { resolution, time }.main_image(color, frag_coord);
+}
+
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
 }
 
 fn rect(uv: Vec2, pos: Vec2, r: f32) -> Vec4 {
@@ -23,7 +33,7 @@ fn rect(uv: Vec2, pos: Vec2, r: f32) -> Vec4 {
 }
 
 impl Inputs {
-    pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let mut uv: Vec2 = frag_coord;
         let t: f32 = self.time.sin();
 

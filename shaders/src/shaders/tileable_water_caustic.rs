@@ -10,17 +10,26 @@
 //! // Water turbulence effect by joltz0r 2013-07-04, improved 2013-07-07
 //! ```
 
-use shared::*;
-use spirv_std::glam::{vec2, vec3, Vec2, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Tileable Water Caustic",
+};
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    Inputs { resolution, time }.main_image(color, frag_coord);
+}
+
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
 }
 
 // Redefine below to see the tiling...
@@ -30,7 +39,7 @@ use core::f32::consts::TAU;
 const MAX_ITER: usize = 5;
 
 impl Inputs {
-    pub fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let time: f32 = self.time * 0.5 + 23.0;
         // uv should be the 0-1 uv of texture...
         let mut uv: Vec2 = frag_coord / self.resolution.xy();

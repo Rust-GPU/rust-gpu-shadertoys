@@ -17,21 +17,35 @@
 //! // https://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 //! ```
 
-use shared::*;
-use spirv_std::glam::{
-    vec2, vec3, Mat3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
+use crate::shader_prelude::*;
+
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Raymarching Primitives",
 };
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    Inputs {
+        resolution,
+        frame: (time * 60.0) as i32,
+        time,
+        mouse,
+    }
+    .main_image(color, frag_coord);
+}
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub frame: i32,
-    pub time: f32,
-    pub mouse: Vec4,
+struct Inputs {
+    resolution: Vec3,
+    frame: i32,
+    time: f32,
+    mouse: Vec4,
 }
 
 const HW_PERFORMANCE: usize = 1;

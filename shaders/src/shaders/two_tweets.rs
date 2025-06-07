@@ -6,16 +6,24 @@
 //! // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 //! ```
 
-use spirv_std::glam::{vec3, Vec2, Vec3, Vec4};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition { name: "Two Tweets" };
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    Inputs { resolution, time }.main_image(color, frag_coord);
+}
+
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
 }
 
 impl Inputs {
@@ -27,7 +35,7 @@ impl Inputs {
             - 1.
     }
 
-    pub fn main_image(&self, c: &mut Vec4, p: Vec2) {
+    fn main_image(&self, c: &mut Vec4, p: Vec2) {
         let d: Vec3 = Vec3::splat(0.5) - p.extend(1.0) / self.resolution.x;
         let mut o: Vec3 = d;
         for _ in 0..128 {

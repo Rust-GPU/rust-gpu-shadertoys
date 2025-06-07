@@ -1,17 +1,25 @@
 //! Ported to Rust from <https://www.shadertoy.com/view/ttKGDt>
 
-use spirv_std::glam::{vec3, Mat2, Vec2, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-use core::f32::consts::PI;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Phantom Star",
+};
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use {shared::FloatExt, spirv_std::num_traits::Float};
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    Inputs { resolution, time }.main_image(color, frag_coord);
+}
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
 }
 
 fn rot(a: f32) -> Mat2 {
@@ -58,7 +66,7 @@ impl Inputs {
         self.ifs_box(p1)
     }
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let p: Vec2 =
             (frag_coord * 2.0 - self.resolution.xy()) / self.resolution.x.min(self.resolution.y);
 

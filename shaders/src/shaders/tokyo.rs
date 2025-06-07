@@ -13,23 +13,30 @@
 //! // I have never been in Tokyo btw.
 //! ```
 
-use shared::*;
-use spirv_std::glam::{
-    mat2, vec2, vec3, vec4, Mat2, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
+use crate::shader_prelude::*;
+
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Tokyo by Night",
 };
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-
-#[derive(Clone, Copy)]
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    State::new(Inputs { resolution, time }).main_image(color, frag_coord);
 }
 
-pub struct State {
+#[derive(Clone, Copy)]
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+}
+
+struct State {
     inputs: Inputs,
 
     d_l: f32, // minimal distance to light
@@ -42,8 +49,9 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(inputs: Inputs) -> State {
-        State {
+    #[must_use]
+    fn new(inputs: Inputs) -> Self {
+        Self {
             inputs,
 
             d_l: 0.0,
@@ -446,7 +454,7 @@ impl State {
     //----------------------------------------------------------------------
     // main
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let mut q: Vec2 = frag_coord / self.inputs.resolution.xy();
         let mut p: Vec2 = -Vec2::ONE + 2.0 * q;
         p.x *= self.inputs.resolution.x / self.inputs.resolution.y;

@@ -26,20 +26,33 @@
 //! */
 //! ```
 
-use shared::*;
-use spirv_std::glam::{
-    vec2, vec3, Mat2, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
+use crate::shader_prelude::*;
+
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "A Question of Time",
 };
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    Inputs {
+        resolution,
+        time,
+        mouse,
+    }
+    .main_image(color, frag_coord);
+}
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
 }
 
 // a few utility functions
@@ -153,7 +166,7 @@ impl Inputs {
 
         // drag your mouse to apply circle inversion
         if ms.y != -2.0 && ms.w > -2.0 {
-            uv = inversion(uv, 60.0.to_radians().cos());
+            uv = inversion(uv, 60.0_f32.to_radians().cos());
             ci = ms.xy();
         }
 
@@ -308,7 +321,7 @@ impl Inputs {
         c
     }
 
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let uv: Vec2 = (frag_coord - self.resolution.xy() * 0.5) / self.resolution.y;
         let ms: Vec4 = (self.mouse - self.resolution.xyxy() * 0.5) / self.resolution.y;
         *frag_color = self.scene(uv * 4., ms * 4.).extend(1.0);

@@ -19,19 +19,33 @@
 //! */
 //! ```
 
-use shared::*;
-use spirv_std::arch::Derivative;
-use spirv_std::glam::{vec2, vec3, vec4, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Filtering Procedurals",
+};
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    Inputs {
+        resolution,
+        time,
+        mouse,
+    }
+    .main_image(color, frag_coord);
+}
+
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
 }
 
 //===============================================================================================
@@ -337,7 +351,7 @@ fn sample_texture(uvw: Vec3, nor: Vec3, mid: f32) -> Vec3 {
 }
 
 impl Inputs {
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let p: Vec2 = (-self.resolution.xy() + 2.0 * frag_coord) / self.resolution.y;
         let mut th: f32 = (-self.resolution.x + 2.0 * self.mouse.x) / self.resolution.y;
 

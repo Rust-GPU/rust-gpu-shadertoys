@@ -16,17 +16,26 @@
 //! // Go to lines 54 to compare both.
 //! ```
 
-use shared::*;
-use spirv_std::glam::{vec2, vec3, Mat3, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4};
+use crate::shader_prelude::*;
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Soft Shadow Variation",
+};
 
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        ..
+    } = render_instruction;
+    Inputs { resolution, time }.main_image(color, frag_coord);
+}
+
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
 }
 
 // make this 1 is your machine is too slow
@@ -184,7 +193,7 @@ fn set_camera(ro: Vec3, ta: Vec3, cr: f32) -> Mat3 {
 }
 
 impl Inputs {
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         // camera
         let an: f32 = 12.0 - (0.1 * self.time).sin();
         let ro: Vec3 = vec3(3.0 * (0.1 * an).cos(), 1.0, -3.0 * (0.1 * an).sin());

@@ -11,17 +11,14 @@ use-installed-tools = ["spirv-builder/use-installed-tools"]
 use-compiled-tools = ["spirv-builder/use-compiled-tools"]
 
 [dependencies]
-shared = { path = "shared" }
+shadertoys-shaders = { path = "shaders" }
 futures = { version = "0.3", default-features = false, features = [
     "std",
-    "executor"
+    "executor",
 ] }
-wgpu = { version = "25.0.0", features = [
-    "spirv",
-    "vulkan-portability"
-] }
+wgpu = { version = "25.0.0", features = ["spirv", "vulkan-portability"] }
 winit = { git = "https://github.com/rust-windowing/winit.git", rev = "cdbdd974fbf79b82b3fb1a4bc84ed717312a3bd2" }
-bytemuck = "1.20.0"
+bytemuck = "1.23.0"
 env_logger = "0.11.6"
 ouroboros = "0.18.5"
 
@@ -29,7 +26,7 @@ ouroboros = "0.18.5"
 spirv-builder.workspace = true
 
 [workspace]
-members = ["shaders", "shared"]
+members = ["shaders"]
 
 [workspace.dependencies]
 spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "0b37696e9f5edde8fa0c1363a88e6c8cb8e6ff68", default-features = false }
@@ -53,7 +50,74 @@ opt-level = 3
 [profile.release.package."shadertoys-shaders"]
 opt-level = 0
 
+[workspace.lints.clippy]
+# disabled because shader code does this often
+cast_precision_loss = "allow"
+cast_possible_truncation = "allow"
+excessive_precision = "allow"
+missing_const_for_fn = "allow"
+many_single_char_names = "allow"
+similar_names = "allow"
+too_many_arguments = "allow"
+suboptimal_flops = "allow"
+too_many_lines = "allow"
+cognitive_complexity = "allow"
+# disabled because of rust gpu limitatoins
+manual_range_contains = "allow" # Rust gpu does not like the core range checks
+needless_range_loop = "allow"   # Rust gpu does not like iterators very much
+manual_swap = "allow"           # Rust gpu does not like the core swap function
+# temporarily disabled rules
+inline_always = "allow"                # need some hard numbers for this
+unreadable_literal = "allow"           # Maybe fix this?
+useless_let_if_seq = "allow"           # Maybe fix this?
+used_underscore_items = "allow"        # Maybe fix this?
+no_effect_underscore_binding = "allow" # Maybe fix this?
+
+# standard rules for idiomatic Rust code
+let_and_return = "allow"
+needless_lifetimes = "allow"
+option_if_let_else = "allow"
+# see: https://github.com/bevyengine/bevy/pull/15375#issuecomment-2366966219
+too_long_first_doc_paragraph = "allow"
+missing_panics_doc = "allow"
+doc-markdown = "allow"
+
+nursery = { priority = -1, level = "warn" }
+pedantic = { priority = -1, level = "warn" }
+doc_markdown = "warn"
+manual_let_else = "warn"
+match_same_arms = "warn"
+redundant_closure_for_method_calls = "warn"
+redundant_else = "warn"
+semicolon_if_nothing_returned = "warn"
+type_complexity = "allow"
+undocumented_unsafe_blocks = "warn"
+unwrap_or_default = "warn"
+
+ptr_as_ptr = "warn"
+ptr_cast_constness = "warn"
+ref_as_ptr = "warn"
+
+std_instead_of_core = "warn"
+std_instead_of_alloc = "warn"
+alloc_instead_of_core = "warn"
+
 [workspace.lints.rust]
+nonstandard-style = "warn"
+future-incompatible = "warn"
+missing_docs = "allow" # TODO: warn
+unused = { priority = -1, level = "warn" }
+rust_2018_idioms = { priority = -1, level = "warn" }
+rust-2024-compatibility = "warn"
+array-into-iter = "warn"
+bare-trait-objects = "warn"
+ellipsis-inclusive-range-patterns = "warn"
+non-fmt-panics = "warn"
+explicit-outlives-requirements = "warn"
+unused-extern-crates = "warn"
+unsafe_code = "allow" # TODO: forbid
+unsafe_op_in_unsafe_fn = "warn"
+unused_qualifications = "warn"
 unexpected_cfgs = { level = "allow", check-cfg = [
-    'cfg(target_arch, values("spirv"))'
+    'cfg(target_arch, values("spirv"))',
 ] }

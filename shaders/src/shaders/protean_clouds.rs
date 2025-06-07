@@ -26,31 +26,45 @@
 //! */
 //! ```
 
-use shared::*;
-use spirv_std::glam::{
-    mat3, vec2, vec3, vec4, Mat2, Mat3, Vec2, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles,
+use crate::shader_prelude::*;
+
+pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+    name: "Protean Clouds",
 };
 
-// Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
-// we tie #[no_std] above to the same condition, so it's fine.
-#[cfg(target_arch = "spirv")]
-use spirv_std::num_traits::Float;
-
-pub struct Inputs {
-    pub resolution: Vec3,
-    pub time: f32,
-    pub mouse: Vec4,
+pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
+    let color = &mut render_result.color;
+    let &ShaderInput {
+        resolution,
+        time,
+        frag_coord,
+        mouse,
+        ..
+    } = render_instruction;
+    State::new(Inputs {
+        resolution,
+        time,
+        mouse,
+    })
+    .main_image(color, frag_coord);
 }
 
-pub struct State {
+struct Inputs {
+    resolution: Vec3,
+    time: f32,
+    mouse: Vec4,
+}
+
+struct State {
     inputs: Inputs,
     prm1: f32,
     bs_mo: Vec2,
 }
 
 impl State {
-    pub fn new(inputs: Inputs) -> Self {
-        State {
+    #[must_use]
+    fn new(inputs: Inputs) -> Self {
+        Self {
             inputs,
             prm1: 0.0,
             bs_mo: Vec2::ZERO,
@@ -183,7 +197,7 @@ fn i_lerp(a: Vec3, b: Vec3, x: f32) -> Vec3 {
 }
 
 impl State {
-    pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
+    fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let q: Vec2 = frag_coord / self.inputs.resolution.xy();
         let p: Vec2 = (frag_coord - 0.5 * self.inputs.resolution.xy()) / self.inputs.resolution.y;
         self.bs_mo =
