@@ -61,6 +61,11 @@ pub struct ShaderDefinition {
     pub name: &'static str,
 }
 
+pub trait Shader {
+    const SHADER_DEFINITION: &'static ShaderDefinition;
+    fn shader_fn(shader_input: &ShaderInput, shader_output: &mut ShaderResult);
+}
+
 #[inline(always)]
 #[must_use]
 pub fn saturate_vec3(a: Vec3) -> Vec3 {

@@ -13,22 +13,26 @@
 
 use crate::shader_prelude::*;
 
-pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
     name: "A Lot of Spheres",
 };
 
-pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
-    let color = &mut render_result.color;
-    let &ShaderInput {
-        resolution,
-        time,
-        frag_coord,
-        ..
-    } = render_instruction;
-    Inputs { resolution, time }.main_image(color, frag_coord);
+impl Shader for ShaderALotOfSpheres {
+    const SHADER_DEFINITION: &'static ShaderDefinition = &SHADER_DEFINITION;
+
+    fn shader_fn(shader_input: &ShaderInput, shader_output: &mut ShaderResult) {
+        let frag_color = &mut shader_output.color;
+        let &ShaderInput {
+            resolution,
+            time,
+            frag_coord,
+            ..
+        } = shader_input;
+        Self { resolution, time }.main_image(frag_color, frag_coord);
+    }
 }
 
-struct Inputs {
+pub struct ShaderALotOfSpheres {
     resolution: Vec3,
     time: f32,
 }
@@ -110,7 +114,7 @@ fn get_sphere_offset(grid: Vec2, center: &mut Vec2) {
     *center = (hash2_vec(grid + vec2(43.12, 1.23)) - Vec2::splat(0.5)) * (GRIDSIZESMALL);
 }
 
-impl Inputs {
+impl ShaderALotOfSpheres {
     fn get_moving_sphere_position(&self, grid: Vec2, sphere_offset: Vec2, center: &mut Vec3) {
         // falling?
         let s: f32 = 0.1 + hash(grid.x * 1.23114 + 5.342 + 74.324231 * grid.y);
@@ -130,7 +134,7 @@ fn get_sphere_color(grid: Vec2) -> Vec3 {
     hash3_vec(grid + vec2(43.12 * grid.y, 12.23 * grid.x)).normalize()
 }
 
-impl Inputs {
+impl ShaderALotOfSpheres {
     fn trace(
         &self,
         ro: Vec3,
@@ -256,18 +260,18 @@ impl Inputs {
     }
 
     fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
-        let q: Vec2 = frag_coord / self.resolution.xy();
-        let mut p: Vec2 = Vec2::splat(-1.0) + 2.0 * q;
+        let q = frag_coord / self.resolution.xy();
+        let mut p = Vec2::splat(-1.0) + 2.0 * q;
         p.x *= self.resolution.x / self.resolution.y;
 
         // camera
-        let ce: Vec3 = vec3(
+        let ce = vec3(
             (0.232 * self.time).cos() * 10.0,
             6. + 3.0 * (0.3 * self.time).cos(),
             GRIDSIZE * (self.time / SPEED),
         );
-        let ro: Vec3 = ce;
-        let ta: Vec3 = ro
+        let ro = ce;
+        let ta = ro
             + vec3(
                 -(0.232 * self.time).sin() * 10.,
                 -2.0 + (0.23 * self.time).cos(),
@@ -276,18 +280,18 @@ impl Inputs {
 
         let roll: f32 = -0.15 * (0.5 * self.time).sin();
         // camera tx
-        let cw: Vec3 = (ta - ro).normalize();
-        let cp: Vec3 = vec3(roll.sin(), roll.cos(), 0.0);
-        let cu: Vec3 = (cw.cross(cp)).normalize();
-        let cv: Vec3 = (cu.cross(cw)).normalize();
-        let mut rd: Vec3 = (p.x * cu + p.y * cv + 1.5 * cw).normalize();
+        let cw = (ta - ro).normalize();
+        let cp = vec3(roll.sin(), roll.cos(), 0.0);
+        let cu = (cw.cross(cp)).normalize();
+        let cv = (cu.cross(cw)).normalize();
+        let mut rd = (p.x * cu + p.y * cv + 1.5 * cw).normalize();
         // raytrace
         let mut material: i32 = 0;
-        let mut normal: Vec3 = Vec3::ZERO;
-        let mut intersection: Vec3 = Vec3::ZERO;
+        let mut normal = Vec3::ZERO;
+        let mut intersection = Vec3::ZERO;
         let mut dist: f32 = 0.0;
 
-        let mut col: Vec3 = self.trace(
+        let mut col = self.trace(
             ro,
             rd,
             &mut intersection,
@@ -296,7 +300,7 @@ impl Inputs {
             &mut material,
         );
         if material > 0 && REFLECTION {
-            let ro: Vec3 = intersection + EPSILON * normal;
+            let ro = intersection + EPSILON * normal;
             rd = rd.reflect(normal);
             col += 0.05
                 * self.trace(

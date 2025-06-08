@@ -41,25 +41,26 @@ macro_rules! match_index {
 }
 
 macro_rules! render_shader_macro {
-    ($($shader_name:ident),* $(,)?) => {
+    ($($shader_name:path),* $(,)?) => {
         #[inline(always)]
         pub fn render_shader(shader_index: u32, shader_input: &ShaderInput, shader_output: &mut ShaderResult) {
             match_index!(shader_index; $(
-                $shader_name::shader_fn(shader_input, shader_output),
+                <$shader_name>::shader_fn(shader_input, shader_output),
             )*)
         }
 
-        pub const SHADER_DEFINITIONS: &[ShaderDefinition] = &[
+        pub const SHADER_DEFINITIONS: &[&ShaderDefinition] = &[
             $(
-                $shader_name::SHADER_DEFINITION,
+                <$shader_name>::SHADER_DEFINITION,
             )*
         ];
     };
 }
 
 render_shader_macro!(
-    miracle_snowflakes,
-    morphing,
+    a_lot_of_spheres::ShaderALotOfSpheres,
+    miracle_snowflakes::ShaderMiracleSnowflakes<'_>,
+    /*morphing,
     voxel_pac_man,
     luminescence,
     seascape,
@@ -85,5 +86,5 @@ render_shader_macro!(
     geodesic_tiling,
     flappy_bird,
     tokyo,
-    on_off_spikes,
+    on_off_spikes,*/
 );

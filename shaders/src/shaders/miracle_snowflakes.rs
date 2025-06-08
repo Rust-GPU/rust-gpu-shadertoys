@@ -12,31 +12,18 @@
 
 use crate::shader_prelude::*;
 
-pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
+const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
     name: "Playing Marble",
 };
 
-pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
-    let color = &mut render_result.color;
-    let &ShaderInput {
-        resolution,
-        time,
-        frag_coord,
-        mouse,
-        ..
-    } = render_instruction;
-    State::new(Inputs {
-        resolution,
-        time,
-        mouse,
-    })
-    .main_image(color, frag_coord);
-}
+impl Shader for ShaderMiracleSnowflakes<'_> {
+    const SHADER_DEFINITION: &'static ShaderDefinition = &SHADER_DEFINITION;
 
-struct Inputs {
-    resolution: Vec3,
-    time: f32,
-    mouse: Vec4,
+    fn shader_fn(shader_input: &ShaderInput, shader_output: &mut ShaderResult) {
+        let frag_color = &mut shader_output.color;
+        let &ShaderInput { frag_coord, .. } = shader_input;
+        ShaderMiracleSnowflakes::new(&shader_input).main_image(frag_color, frag_coord);
+    }
 }
 
 const ITERATIONS: u32 = 15;
@@ -46,8 +33,8 @@ const LAYERSBLOB: i32 = 20;
 const STEP: f32 = 1.0;
 const FAR: f32 = 10000.0;
 
-struct State {
-    inputs: Inputs,
+pub struct ShaderMiracleSnowflakes<'a> {
+    inputs: &'a ShaderInput,
     radius: f32,
     zoom: f32,
 
@@ -63,9 +50,9 @@ struct State {
     mxc: f32,
 }
 
-impl State {
+impl<'a> ShaderMiracleSnowflakes<'a> {
     #[must_use]
-    fn new(inputs: Inputs) -> Self {
+    fn new(inputs: &'a ShaderInput) -> Self {
         Self {
             inputs,
             radius: 0.25, // radius of Snowflakes. maximum for this demo 0.25.
@@ -132,7 +119,7 @@ fn noise3_2(x: Vec3) -> Vec2 {
     vec2(noise3(x), noise3(x + Vec3::splat(100.0)))
 }
 
-impl State {
+impl<'a> ShaderMiracleSnowflakes<'a> {
     fn map(&self, rad: Vec2) -> f32 {
         let a: f32;
         if self.res < 0.0015 {
@@ -148,8 +135,7 @@ impl State {
         }
         a - 0.5
     }
-}
-impl State {
+
     fn dist_obj(&self, pos: Vec3, mut ray: Vec3, mut r: f32, seed: Vec2) -> Vec3 {
         let rq: f32 = r * r;
         let mut dist: Vec3 = ray * FAR;
