@@ -14,7 +14,7 @@ mod heart;
 mod luminescence;
 mod mandelbrot_smooth;
 mod miracle_snowflakes;
-mod morphing;
+mod morphing_teapot;
 mod moving_square;
 mod on_off_spikes;
 mod phantom_star;
@@ -60,8 +60,8 @@ macro_rules! render_shader_macro {
 render_shader_macro!(
     a_lot_of_spheres::ShaderALotOfSpheres,
     miracle_snowflakes::ShaderMiracleSnowflakes<'_>,
-    /*morphing,
-    voxel_pac_man,
+    morphing_teapot::ShaderMorphingTeapot<'_>,
+    /*voxel_pac_man,
     luminescence,
     seascape,
     two_tweets,

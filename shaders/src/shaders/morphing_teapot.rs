@@ -12,31 +12,18 @@ pub const SHADER_DEFINITION: ShaderDefinition = ShaderDefinition {
     name: "Morphing Teapot",
 };
 
-pub fn shader_fn(render_instruction: &ShaderInput, render_result: &mut ShaderResult) {
-    let color = &mut render_result.color;
-    let &ShaderInput {
-        resolution,
-        time,
-        frag_coord,
-        mouse,
-        ..
-    } = render_instruction;
-    State::new(Inputs {
-        resolution,
-        time,
-        mouse,
-    })
-    .main_image(color, frag_coord);
+impl Shader for ShaderMorphingTeapot<'_> {
+    const SHADER_DEFINITION: &'static ShaderDefinition = &SHADER_DEFINITION;
+
+    fn shader_fn(shader_input: &ShaderInput, shader_output: &mut ShaderResult) {
+        let frag_color = &mut shader_output.color;
+        let &ShaderInput { frag_coord, .. } = shader_input;
+        ShaderMorphingTeapot::new(&shader_input).main_image(frag_color, frag_coord);
+    }
 }
 
-struct Inputs {
-    resolution: Vec3,
-    time: f32,
-    mouse: Vec4,
-}
-
-struct State {
-    inputs: Inputs,
+pub struct ShaderMorphingTeapot<'a> {
+    inputs: &'a ShaderInput,
 
     a: [Vec2; 15],
     t1: [Vec2; 5],
@@ -48,9 +35,9 @@ struct State {
     mat2_rot: Mat2,
 }
 
-impl State {
+impl<'a> ShaderMorphingTeapot<'a> {
     #[must_use]
-    fn new(inputs: Inputs) -> Self {
+    fn new(inputs: &'a ShaderInput) -> Self {
         Self {
             inputs,
 
@@ -117,7 +104,7 @@ fn smin(a: f32, b: f32, k: f32) -> f32 {
     mix(b, a, h) - k * h * (1. - h)
 }
 
-impl State {
+impl<'a> ShaderMorphingTeapot<'a> {
     // Distance to scene
     fn m(&self, mut p: Vec3) -> f32 {
         // Distance to Teapot ---------------------------------------------------
@@ -187,7 +174,7 @@ fn hsv2rgb_smooth(x: f32, y: f32, z: f32) -> Vec3 {
     z * mix(Vec3::ONE, rgb, y)
 }
 
-impl State {
+impl<'a> ShaderMorphingTeapot<'a> {
     fn normal(&self, p: Vec3, ray: Vec3, t: f32) -> Vec3 {
         let pitch: f32 = 0.4 * t / self.inputs.resolution.x;
         let d: Vec2 = vec2(-1.0, 1.0) * pitch;

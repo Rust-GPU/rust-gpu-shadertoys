@@ -78,24 +78,24 @@ fn hash4(n: Vec4) -> Vec4 {
     (n.sin() * 1399763.5453123).fract_gl()
 }
 fn noise2(x: Vec2) -> f32 {
-    let p: Vec2 = x.floor();
-    let mut f: Vec2 = x.fract_gl();
+    let p = x.floor();
+    let mut f = x.fract_gl();
     f = f * f * (Vec2::splat(3.0) - 2.0 * f);
-    let n: f32 = p.x + p.y * 157.0;
+    let n = p.x + p.y * 157.0;
     let nc0 = NC0;
     let nc1 = NC1;
-    let h: Vec4 = hash4(Vec4::splat(n) + vec4(nc0.x, nc0.y, nc1.x, nc1.y));
-    let s1: Vec2 = mix(h.xy(), h.zw(), f.xx());
+    let h = hash4(Vec4::splat(n) + vec4(nc0.x, nc0.y, nc1.x, nc1.y));
+    let s1 = mix(h.xy(), h.zw(), f.xx());
     mix(s1.x, s1.y, f.y)
 }
 
 fn noise222(x: Vec2, y: Vec2, z: Vec2) -> f32 {
-    let lx: Vec4 = vec4(x.x * y.x, x.y * y.x, x.x * y.y, x.y * y.y);
-    let p: Vec4 = lx.floor();
-    let mut f: Vec4 = lx.fract_gl();
+    let lx = vec4(x.x * y.x, x.y * y.x, x.x * y.y, x.y * y.y);
+    let p = lx.floor();
+    let mut f = lx.fract_gl();
     f = f * f * (Vec4::splat(3.0) - 2.0 * f);
-    let n: Vec2 = p.xz() + p.yw() * 157.0;
-    let h: Vec4 = mix(
+    let n = p.xz() + p.yw() * 157.0;
+    let h = mix(
         hash4(n.xxyy() + NC0.xyxy()),
         hash4(n.xxyy() + NC1.xyxy()),
         f.xxzz(),
@@ -104,11 +104,11 @@ fn noise222(x: Vec2, y: Vec2, z: Vec2) -> f32 {
 }
 
 fn noise3(x: Vec3) -> f32 {
-    let p: Vec3 = x.floor();
-    let mut f: Vec3 = x.fract_gl();
+    let p = x.floor();
+    let mut f = x.fract_gl();
     f = f * f * (Vec3::splat(3.0) - 2.0 * f);
-    let n: f32 = p.x + p.yz().dot(vec2(157.0, 113.0));
-    let s1: Vec4 = mix(
+    let n = p.x + p.yz().dot(vec2(157.0, 113.0));
+    let s1 = mix(
         hash4(Vec4::splat(n) + NC0),
         hash4(Vec4::splat(n) + NC1),
         f.xxxx(),
@@ -121,7 +121,7 @@ fn noise3_2(x: Vec3) -> Vec2 {
 
 impl<'a> ShaderMiracleSnowflakes<'a> {
     fn map(&self, rad: Vec2) -> f32 {
-        let a: f32;
+        let a;
         if self.res < 0.0015 {
             //a = noise2(rad.xy*20.6)*0.9+noise2(rad.xy*100.6)*0.1;
             a = noise222(rad, vec2(20.6, 100.6), vec2(0.9, 0.1));
@@ -137,35 +137,35 @@ impl<'a> ShaderMiracleSnowflakes<'a> {
     }
 
     fn dist_obj(&self, pos: Vec3, mut ray: Vec3, mut r: f32, seed: Vec2) -> Vec3 {
-        let rq: f32 = r * r;
-        let mut dist: Vec3 = ray * FAR;
+        let rq = r * r;
+        let mut dist = ray * FAR;
 
-        let norm: Vec3 = vec3(0.0, 0.0, 1.0);
-        let invn: f32 = 1.0 / norm.dot(ray);
-        let mut depthi: f32 = DEPTH;
+        let norm = vec3(0.0, 0.0, 1.0);
+        let invn = 1.0 / norm.dot(ray);
+        let mut depthi = DEPTH;
         if invn < 0.0 {
             depthi = -depthi;
         }
-        let mut ds: f32 = 2.0 * depthi * invn;
-        let mut r1: Vec3 = ray * (norm.dot(pos) - depthi) * invn - pos;
-        let op1: Vec3 = r1 + norm * depthi;
-        let len1: f32 = op1.dot(op1);
-        let mut r2: Vec3 = r1 + ray * ds;
-        let op2: Vec3 = r2 - norm * depthi;
-        let len2: f32 = op2.dot(op2);
-        let n: Vec3 = ray.cross(norm).normalize();
-        let mind: f32 = pos.dot(n);
-        let n2: Vec3 = ray.cross(n);
-        let d: f32 = n2.dot(pos) / n2.dot(norm);
-        let invd: f32 = 0.2 / DEPTH;
+        let mut ds = 2.0 * depthi * invn;
+        let mut r1 = ray * (norm.dot(pos) - depthi) * invn - pos;
+        let op1 = r1 + norm * depthi;
+        let len1 = op1.dot(op1);
+        let mut r2 = r1 + ray * ds;
+        let op2 = r2 - norm * depthi;
+        let len2 = op2.dot(op2);
+        let n = ray.cross(norm).normalize();
+        let mind = pos.dot(n);
+        let n2 = ray.cross(n);
+        let d = n2.dot(pos) / n2.dot(norm);
+        let invd = 0.2 / DEPTH;
 
         if (len1 < rq || len2 < rq) || (mind.abs() < r && d <= DEPTH && d >= -DEPTH) {
-            let _r3: Vec3 = r2;
-            let len: f32 = len1;
+            let _r3 = r2;
+            let len = len1;
             if len >= rq {
-                let n3: Vec3 = norm.cross(n);
-                let a: f32 = 1.0 / (rq - mind * mind).sqrt() * ray.dot(n3).abs();
-                let dt: Vec3 = ray / a;
+                let n3 = norm.cross(n);
+                let a = 1.0 / (rq - mind * mind).sqrt() * ray.dot(n3).abs();
+                let dt = ray / a;
                 r1 = -d * norm - mind * n - dt;
                 if len2 >= rq {
                     r2 = -d * norm - mind * n + dt;
@@ -177,21 +177,21 @@ impl<'a> ShaderMiracleSnowflakes<'a> {
             if ds > 0.01 {
                 ds = 0.01;
             }
-            let ir: f32 = 0.35 / r;
+            let ir = 0.35 / r;
             r *= self.zoom;
             ray = ray * ds * 5.0;
             for m in 0..ITERATIONS {
                 if m as f32 >= self.iteratorc {
                     break;
                 }
-                let mut l: f32 = r1.xy().length(); //r1.xy().dot(r1.xy()).sqrt();
-                let mut c3: Vec2 = (r1.xy() / l).abs();
+                let mut l = r1.xy().length(); //r1.xy().dot(r1.xy()).sqrt();
+                let mut c3 = (r1.xy() / l).abs();
                 if c3.x > 0.5 {
                     c3 = (c3 * 0.5 + vec2(-c3.y, c3.x) * 0.86602540).abs();
                 }
-                let g: f32 = l + c3.x * c3.x; //*1.047197551;
+                let g = l + c3.x * c3.x; //*1.047197551;
                 l *= self.zoom;
-                let mut h: f32 = l - r - 0.1;
+                let mut h = l - r - 0.1;
                 l = l.powf(self.powr) + 0.1;
                 h = h.max(mix(self.map(c3 * l + seed), 1.0, (r1.z * invd).abs())) + g * ir - 0.245; //0.7*0.35=0.245 //*0.911890636
                 if (h < self.res * 20.0) || r1.z.abs() > DEPTH + 0.01 {
@@ -215,20 +215,20 @@ impl<'a> ShaderMiracleSnowflakes<'a> {
         ray1: Vec3,
         ray2: Vec3,
     ) -> Vec4 {
-        let d: Vec3 = self.dist_obj(pos, ray, self.radius, self.seed);
-        let n1: Vec3 = self.dist_obj(pos, ray1, self.radius, self.seed);
-        let n2: Vec3 = self.dist_obj(pos, ray2, self.radius, self.seed);
+        let d = self.dist_obj(pos, ray, self.radius, self.seed);
+        let n1 = self.dist_obj(pos, ray1, self.radius, self.seed);
+        let n2 = self.dist_obj(pos, ray2, self.radius, self.seed);
 
-        let lq: Vec3 = vec3(d.dot(d), n1.dot(n1), n2.dot(n2));
+        let lq = vec3(d.dot(d), n1.dot(n1), n2.dot(n2));
         if lq.x < FAR || lq.y < FAR || lq.z < FAR {
-            let n: Vec3 = (n1 - d).cross(n2 - d).normalize();
+            let n = (n1 - d).cross(n2 - d).normalize();
             if lq.x < FAR && lq.y < FAR && lq.z < FAR {
                 self.nray = n; //(self.nray+n).normalize();
                                //self.nray1 = (ray1+n).normalize();
                                //self.nray2 = (ray2+n).normalize();
             }
-            let da: f32 = n.dot(self.light).abs().powf(3.0);
-            let mut cf: Vec3 = mix(vec3(0.0, 0.4, 1.0), color.xyz() * 10.0, n.dot(ray).abs());
+            let da = n.dot(self.light).abs().powf(3.0);
+            let mut cf = mix(vec3(0.0, 0.4, 1.0), color.xyz() * 10.0, n.dot(ray).abs());
             cf = mix(cf, Vec3::splat(2.0), da);
             color = (mix(
                 color.xyz(),
@@ -242,16 +242,16 @@ impl<'a> ShaderMiracleSnowflakes<'a> {
     }
 
     fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
-        let time: f32 = self.inputs.time * 0.2; //*0.1;
+        let time = self.inputs.time * 0.2; //*0.1;
         self.res = 1.0 / self.inputs.resolution.y;
-        let p: Vec2 = (-self.inputs.resolution.xy() + 2.0 * frag_coord) * self.res;
+        let p = (-self.inputs.resolution.xy() + 2.0 * frag_coord) * self.res;
 
-        let mut rotate: Vec3;
-        let mut mr: Mat3;
-        let mut ray: Vec3;
-        let mut ray1: Vec3;
-        let mut ray2: Vec3;
-        let mut pos: Vec3 = vec3(0.0, 0.0, 1.0);
+        let mut rotate;
+        let mut mr;
+        let mut ray;
+        let mut ray1;
+        let mut ray2;
+        let mut pos = vec3(0.0, 0.0, 1.0);
 
         *frag_color = vec4(0.0, 0.0, 0.0, 0.0);
         self.nray = Vec3::ZERO;
@@ -261,27 +261,27 @@ impl<'a> ShaderMiracleSnowflakes<'a> {
         let mut refcolor: Vec4 = Vec4::ZERO;
         self.iteratorc = ITERATIONS as f32 - LAYERS;
 
-        let mut addrot: Vec2 = Vec2::ZERO;
+        let mut addrot = Vec2::ZERO;
         if self.inputs.mouse.z > 0.0 {
             addrot = (self.inputs.mouse.xy() - self.inputs.resolution.xy() * 0.5) * self.res;
         }
 
-        let mut mxcl: f32 = 1.0;
-        let mut addpos: Vec3 = Vec3::ZERO;
+        let mut mxcl = 1.0;
+        let mut addpos = Vec3::ZERO;
         pos.z = 1.0;
         self.mxc = 1.0;
         self.radius = 0.25;
         let mzd: f32 = (self.zoom - 0.1) / LAYERS;
         for i in 0..LAYERSBLOB {
-            let p2: Vec2 = p - Vec2::splat(0.25) + Vec2::splat(0.1 * i as f32);
+            let p2 = p - Vec2::splat(0.25) + Vec2::splat(0.1 * i as f32);
             ray = p2.extend(2.0) - self.nray * 2.0;
             //ray = self.nray;//*0.6;
             ray1 = (ray + vec3(0.0, self.res * 2.0, 0.0)).normalize();
             ray2 = (ray + vec3(self.res * 2.0, 0.0, 0.0)).normalize();
             ray = ray.normalize();
-            let mut sb: Vec2 = ray.xy() * pos.length() / pos.normalize().dot(ray) + vec2(0.0, time);
+            let mut sb = ray.xy() * pos.length() / pos.normalize().dot(ray) + vec2(0.0, time);
             self.seed = (sb + vec2(0.0, pos.z)).floor() + Vec2::splat(pos.z);
-            let mut seedn: Vec3 = self.seed.extend(pos.z);
+            let mut seedn = self.seed.extend(pos.z);
             sb = sb.floor();
             if noise3(seedn) > 0.2 && i < LAYERS as i32 {
                 self.powr = noise3(seedn * 10.0) * 1.9 + 0.1;
@@ -290,8 +290,8 @@ impl<'a> ShaderMiracleSnowflakes<'a> {
                 rotate.z = (0.5 - noise3(seedn + vec3(10.0, 3.0, 1.0))) * time * 5.0;
                 seedn.z += time * 0.5;
                 addpos = (sb + vec2(0.25, 0.25 - time) + noise3_2(seedn) * 0.5).extend(addpos.z);
-                let sins: Vec3 = rotate.sin();
-                let coss: Vec3 = rotate.cos();
+                let sins = rotate.sin();
+                let coss = rotate.cos();
                 mr = Mat3::from_cols(
                     vec3(coss.x, 0.0, sins.x),
                     vec3(0.0, 1.0, 0.0),
@@ -309,14 +309,14 @@ impl<'a> ShaderMiracleSnowflakes<'a> {
                 ) * mr;
 
                 self.light = mr.transpose() * vec3(1.0, 0.0, 1.0).normalize();
-                // let cc: Vec4 = self.filter_flake(
+                // let cc = self.filter_flake(
                 // *frag_color,
                 // mr.transpose() * (pos + addpos),
                 // (mr.transpose() * ray + self.nray * 0.1).normalize(),
                 // (mr.transpose() * ray1 + self.nray * 0.1).normalize(),
                 // (mr.transpose() * ray2 + self.nray * 0.1).normalize(),
                 // );
-                let mut cc: Vec4 = self.filter_flake(
+                let mut cc = self.filter_flake(
                     *frag_color,
                     mr.transpose() * (pos + addpos),
                     mr.transpose() * ray,
@@ -343,10 +343,10 @@ impl<'a> ShaderMiracleSnowflakes<'a> {
             }
             seedn = sb.extend(pos.z) + vec3(0.5, 1000.0, 300.0);
             if noise3(seedn * 10.0) > 0.4 {
-                let raf: f32 = 0.3 + noise3(seedn * 100.0);
+                let raf = 0.3 + noise3(seedn * 100.0);
                 addpos =
                     (sb + vec2(0.2, 0.2 - time) + noise3_2(seedn * 100.0) * 0.6).extend(addpos.z);
-                let mut l: f32 = (ray * ray.dot(pos + addpos) - pos - addpos).length();
+                let mut l = (ray * ray.dot(pos + addpos) - pos - addpos).length();
                 l = (1.0 - l * 10.0 * raf).max(0.0);
                 *frag_color +=
                     vec4(1.0, 1.2, 3.0, 1.0) * l.powf(5.0) * ((0.6 + raf).powf(2.0) - 0.6) * mxcl;
@@ -358,7 +358,7 @@ impl<'a> ShaderMiracleSnowflakes<'a> {
             self.zoom -= mzd;
         }
 
-        let cr: Vec3 = mix(Vec3::ZERO, vec3(0.0, 0.0, 0.4), (-0.55 + p.y) * 2.0);
+        let cr = mix(Vec3::ZERO, vec3(0.0, 0.0, 0.4), (-0.55 + p.y) * 2.0);
         *frag_color = (frag_color.xyz()
             + mix(
                 (cr - frag_color.xyz()) * 0.1,
