@@ -1,17 +1,21 @@
-use bytemuck::{Pod, Zeroable};
+use bytemuck::{NoUninit, Zeroable};
+
+#[repr(C, u32)]
+#[derive(Copy, Clone, NoUninit, Zeroable)]
+pub enum DisplayMode {
+    Grid { _padding: u32 },
+    SingleShader(u32),
+}
 
 #[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
-#[allow(unused_attributes)]
+#[derive(Copy, Clone, NoUninit, Zeroable)]
 pub struct ShaderConstants {
     pub width: u32,
     pub height: u32,
     pub time: f32,
 
     // UI state
-    /// Boolean value indicating whether all shaders are rendered in a grid layout.
-    pub grid_mode: u32,
-    pub shader_to_show: u32,
+    pub shader_display_mode: DisplayMode,
 
     // Mouse state.
     pub cursor_x: f32,

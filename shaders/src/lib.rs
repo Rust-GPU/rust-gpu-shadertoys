@@ -2,6 +2,8 @@
 
 pub mod shader_prelude;
 use shader_prelude::*;
+
+use crate::shared_data::DisplayMode;
 pub mod shaders;
 pub mod shared_data;
 
@@ -75,41 +77,44 @@ pub fn fs(constants: &ShaderConstants, mut frag_coord: Vec2) -> Vec4 {
     let shader_input: ShaderInput;
     let shader_output = &mut ShaderResult { color: Vec4::ZERO };
 
-    if constants.grid_mode == 0 {
-        shader_input = ShaderInput {
-            resolution,
-            time,
-            frag_coord,
-            mouse,
-        };
-        shader_index = constants.shader_to_show as usize;
-    } else {
-        // Render all shaders in a grid layout
-        // ignore shader_to_show
-        let (rows, cols) = optimal_grid(shader_count, vec2(resolution.x, resolution.y));
+    match constants.shader_display_mode {
+        DisplayMode::Grid { _padding: _ } => {
+            // Render all shaders in a grid layout
+            // ignore shader_to_show
+            let (rows, cols) = optimal_grid(shader_count, vec2(resolution.x, resolution.y));
 
-        let cell_width = resolution.x / cols as f32;
-        let cell_height = resolution.y / rows as f32;
+            let cell_width = resolution.x / cols as f32;
+            let cell_height = resolution.y / rows as f32;
 
-        #[expect(clippy::cast_sign_loss)]
-        let col = (frag_coord.x / cell_width).floor() as usize;
-        #[expect(clippy::cast_sign_loss)]
-        let row = (frag_coord.y / cell_height).floor() as usize;
-        shader_index = row + col * rows;
+            #[expect(clippy::cast_sign_loss)]
+            let col = (frag_coord.x / cell_width).floor() as usize;
+            #[expect(clippy::cast_sign_loss)]
+            let row = (frag_coord.y / cell_height).floor() as usize;
+            shader_index = row + col * rows;
 
-        let cell_resolution = vec3(cell_width, cell_height, 0.0);
-        let cell_frag_coord = vec2(
-            (col as f32).mul_add(-cell_width, frag_coord.x),
-            (row as f32).mul_add(-cell_height, frag_coord.y),
-        );
-        let cell_mouse = mouse / vec4(cols as f32, rows as f32, cols as f32, rows as f32);
+            let cell_resolution = vec3(cell_width, cell_height, 0.0);
+            let cell_frag_coord = vec2(
+                (col as f32).mul_add(-cell_width, frag_coord.x),
+                (row as f32).mul_add(-cell_height, frag_coord.y),
+            );
+            let cell_mouse = mouse / vec4(cols as f32, rows as f32, cols as f32, rows as f32);
 
-        shader_input = ShaderInput {
-            resolution: cell_resolution,
-            time,
-            frag_coord: cell_frag_coord,
-            mouse: cell_mouse,
-        };
+            shader_input = ShaderInput {
+                resolution: cell_resolution,
+                time,
+                frag_coord: cell_frag_coord,
+                mouse: cell_mouse,
+            };
+        },
+        DisplayMode::SingleShader(index) => {
+            shader_input = ShaderInput {
+                resolution,
+                time,
+                frag_coord,
+                mouse,
+            };
+            shader_index = index as usize;
+        },
     }
 
     if shader_index < shader_count {

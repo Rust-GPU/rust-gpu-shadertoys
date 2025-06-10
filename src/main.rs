@@ -1,6 +1,9 @@
 use futures::executor::block_on;
 use ouroboros::self_referencing;
-use shadertoys_shaders::{shaders::SHADER_DEFINITIONS, shared_data::ShaderConstants};
+use shadertoys_shaders::{
+    shaders::SHADER_DEFINITIONS,
+    shared_data::{self, ShaderConstants},
+};
 use std::{error::Error, time::Instant};
 use wgpu::{self, include_spirv, include_spirv_raw, InstanceDescriptor};
 use winit::{
@@ -56,6 +59,8 @@ impl Default for ShaderToyApp {
             shader_module: None,
             close_requested: false,
             start: Instant::now(),
+            grid_mode: false,
+            shader_to_show: 0,
             cursor_x: 0.0,
             cursor_y: 0.0,
             drag_start_x: 0.0,
@@ -64,8 +69,6 @@ impl Default for ShaderToyApp {
             drag_end_y: 0.0,
             mouse_left_pressed: false,
             mouse_left_clicked: false,
-            shader_to_show: 0,
-            grid_mode: false,
         }
     }
 }
@@ -193,6 +196,14 @@ impl ShaderToyApp {
         Ok(())
     }
 
+    fn display_mode(&self) -> shared_data::DisplayMode {
+        if self.grid_mode {
+            shared_data::DisplayMode::Grid { _padding: 0 }
+        } else {
+            shared_data::DisplayMode::SingleShader(self.shader_to_show)
+        }
+    }
+
     fn render(&mut self) {
         let window_surface = match &self.window_surface {
             Some(ws) => ws,
@@ -243,6 +254,7 @@ impl ShaderToyApp {
                 width: current_size.width,
                 height: current_size.height,
                 time: self.start.elapsed().as_secs_f32(),
+                shader_display_mode: self.display_mode(),
                 cursor_x: self.cursor_x,
                 cursor_y: self.cursor_y,
                 drag_start_x: self.drag_start_x,
@@ -251,8 +263,6 @@ impl ShaderToyApp {
                 drag_end_y: self.drag_end_y,
                 mouse_left_pressed: self.mouse_left_pressed as u32,
                 mouse_left_clicked: self.mouse_left_clicked as u32,
-                shader_to_show: self.shader_to_show,
-                grid_mode: self.grid_mode as u32,
             };
             self.mouse_left_clicked = false;
             rpass.set_pipeline(self.render_pipeline.as_ref().unwrap());

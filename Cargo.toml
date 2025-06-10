@@ -18,7 +18,7 @@ futures = { version = "0.3", default-features = false, features = [
 ] }
 wgpu = { version = "25.0.0", features = ["spirv", "vulkan-portability"] }
 winit = { git = "https://github.com/rust-windowing/winit.git", rev = "cdbdd974fbf79b82b3fb1a4bc84ed717312a3bd2" }
-bytemuck = "1.23.0"
+bytemuck.workspace = true
 env_logger = "0.11.6"
 ouroboros = "0.18.5"
 
@@ -31,6 +31,9 @@ members = ["shaders"]
 [workspace.dependencies]
 spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "0b37696e9f5edde8fa0c1363a88e6c8cb8e6ff68", default-features = false }
 spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "0b37696e9f5edde8fa0c1363a88e6c8cb8e6ff68" }
+bytemuck = { git = "https://github.com/Lokathor/bytemuck.git", rev = "0e11472150c3b63cbae3b445230fe074405bd2d2", features = [
+    "derive",
+] }
 
 # Compile build-dependencies in release mode with
 # the same settings as regular dependencies.

@@ -255,7 +255,15 @@ version = "1.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9134a6ef01ce4b366b50689c94f82c14bc72bc5d0386829828a2e2752ef7958c"
 dependencies = [
- "bytemuck_derive",
+ "bytemuck_derive 1.9.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "bytemuck"
+version = "1.23.1"
+source = "git+https://github.com/Lokathor/bytemuck.git?rev=0e11472150c3b63cbae3b445230fe074405bd2d2#0e11472150c3b63cbae3b445230fe074405bd2d2"
+dependencies = [
+ "bytemuck_derive 1.9.3 (git+https://github.com/Lokathor/bytemuck.git?rev=0e11472150c3b63cbae3b445230fe074405bd2d2)",
 ]
 
 [[package]]
@@ -263,6 +271,16 @@ name = "bytemuck_derive"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ecc273b49b3205b83d648f0690daa588925572cc5063745bfe547fe7ec8e1a1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "bytemuck_derive"
+version = "1.9.3"
+source = "git+https://github.com/Lokathor/bytemuck.git?rev=0e11472150c3b63cbae3b445230fe074405bd2d2#0e11472150c3b63cbae3b445230fe074405bd2d2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1692,7 +1710,7 @@ source = "git+https://github.com/Rust-GPU/rust-gpu?rev=0b37696e9f5edde8fa0c1363a
 dependencies = [
  "ahash",
  "ar",
- "bytemuck",
+ "bytemuck 1.23.0",
  "either",
  "indexmap",
  "itertools",
@@ -1869,7 +1887,7 @@ dependencies = [
 name = "shadertoys-shaders"
 version = "0.0.0"
 dependencies = [
- "bytemuck",
+ "bytemuck 1.23.1",
  "spirv-std",
 ]
 
@@ -1877,7 +1895,7 @@ dependencies = [
 name = "shadertoys-wgpu"
 version = "0.0.0"
 dependencies = [
- "bytemuck",
+ "bytemuck 1.23.1",
  "env_logger",
  "futures",
  "ouroboros",
@@ -1971,7 +1989,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2d5968bd2a36466468aac637b355776f080edfb0c6f769b2b99b9708260c42a"
 dependencies = [
  "arrayvec",
- "bytemuck",
+ "bytemuck 1.23.0",
  "derive_more",
  "elsa",
  "indexmap",
@@ -2198,7 +2216,7 @@ checksum = "83d13394d44dae3207b52a326c0c85a8bf87f1541f23b0d143811088497b09ab"
 dependencies = [
  "arrayref",
  "arrayvec",
- "bytemuck",
+ "bytemuck 1.23.0",
  "cfg-if",
  "log",
  "tiny-skia-path",
@@ -2211,7 +2229,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c9e7fc0c2e86a30b117d0462aa261b72b7a99b7ebd7deb3a14ceda95c5bdc93"
 dependencies = [
  "arrayref",
- "bytemuck",
+ "bytemuck 1.23.0",
  "strict-num",
 ]
 
@@ -2642,7 +2660,7 @@ dependencies = [
  "bit-set",
  "bit-vec",
  "bitflags 2.9.0",
- "bytemuck",
+ "bytemuck 1.23.0",
  "cfg_aliases",
  "document-features",
  "hashbrown 0.15.2",
@@ -2703,7 +2721,7 @@ dependencies = [
  "bit-set",
  "bitflags 2.9.0",
  "block",
- "bytemuck",
+ "bytemuck 1.23.0",
  "cfg-if",
  "cfg_aliases",
  "core-graphics-types",
@@ -2745,7 +2763,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2aa49460c2a8ee8edba3fca54325540d904dd85b2e086ada762767e17d06e8bc"
 dependencies = [
  "bitflags 2.9.0",
- "bytemuck",
+ "bytemuck 1.23.0",
  "js-sys",
  "log",
  "thiserror 2.0.12",
@@ -3062,7 +3080,7 @@ dependencies = [
  "atomic-waker",
  "bitflags 2.9.0",
  "block2",
- "bytemuck",
+ "bytemuck 1.23.0",
  "calloop",
  "cfg_aliases",
  "concurrent-queue",

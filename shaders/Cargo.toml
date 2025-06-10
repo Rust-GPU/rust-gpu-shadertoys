@@ -9,7 +9,7 @@ crate-type = ["dylib"]
 
 [dependencies]
 spirv-std.workspace = true
-bytemuck = { version = "1.23.0", features = ["derive"] }
+bytemuck.workspace = true
 
 [lints]
 workspace = true
