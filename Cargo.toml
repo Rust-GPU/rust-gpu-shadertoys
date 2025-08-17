@@ -20,7 +20,7 @@ wgpu = { version = "25.0.0", features = [
     "spirv",
     "vulkan-portability"
 ] }
-winit = { git = "https://github.com/rust-windowing/winit.git", rev = "cdbdd974fbf79b82b3fb1a4bc84ed717312a3bd2" }
+winit = "0.30.12"
 bytemuck = "1.20.0"
 env_logger = "0.11.6"
 ouroboros = "0.18.5"
