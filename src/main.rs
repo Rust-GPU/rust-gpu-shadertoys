@@ -13,7 +13,7 @@ use winit::window::{Window, WindowAttributes, WindowId};
 
 #[self_referencing]
 struct WindowSurface {
-    window: Box<dyn Window>,
+    window: Box<Window>,
     #[borrows(window)]
     #[covariant]
     surface: wgpu::Surface<'this>,
@@ -63,10 +63,10 @@ impl Default for ShaderToyApp {
 }
 
 impl ShaderToyApp {
-    async fn init(&mut self, event_loop: &dyn ActiveEventLoop) -> Result<(), Box<dyn Error>> {
+    async fn init(&mut self, event_loop: &ActiveEventLoop) -> Result<(), Box<dyn Error>> {
         let window_attributes = WindowAttributes::default()
             .with_title("Rust GPU - wgpu")
-            .with_surface_size(LogicalSize::new(1280.0, 720.0));
+            .with_inner_size(LogicalSize::new(1280.0, 720.0));
         let window_box = event_loop.create_window(window_attributes)?;
         let mut instance_flags = wgpu::InstanceFlags::default();
         // Turn off validation as the shaders are trusted.
@@ -79,7 +79,7 @@ impl ShaderToyApp {
         });
 
         let window_surface = WindowSurfaceBuilder {
-            window: window_box,
+            window: Box::new(window_box),
             surface_builder: |window| {
                 instance
                     .create_surface(window)
@@ -88,7 +88,7 @@ impl ShaderToyApp {
         }
         .build();
 
-        let window_size = window_surface.borrow_window().surface_size();
+        let window_size = window_surface.borrow_window().inner_size();
         let surface = window_surface.borrow_surface();
 
         let adapter = instance
@@ -192,7 +192,7 @@ impl ShaderToyApp {
         };
 
         let window = window_surface.borrow_window();
-        let current_size = window.surface_size();
+        let current_size = window.inner_size();
         let surface = window_surface.borrow_surface();
         let device = self.device.as_ref().unwrap();
         let queue = self.queue.as_ref().unwrap();
@@ -259,7 +259,7 @@ impl ShaderToyApp {
 }
 
 impl ApplicationHandler for ShaderToyApp {
-    fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let Err(e) = block_on(self.init(event_loop)) {
             eprintln!("Initialization error: {e}");
             event_loop.exit();
@@ -268,13 +268,13 @@ impl ApplicationHandler for ShaderToyApp {
 
     fn window_event(
         &mut self,
-        event_loop: &dyn ActiveEventLoop,
+        event_loop: &ActiveEventLoop,
         _window_id: WindowId,
         event: WindowEvent,
     ) {
         match event {
             WindowEvent::CloseRequested => self.close_requested = true,
-            WindowEvent::SurfaceResized(new_size) => {
+            WindowEvent::Resized(new_size) => {
                 if let Some(config) = self.config.as_mut() {
                     config.width = new_size.width;
                     config.height = new_size.height;
@@ -286,7 +286,7 @@ impl ApplicationHandler for ShaderToyApp {
                     }
                 }
             }
-            WindowEvent::PointerMoved { position, .. } => {
+            WindowEvent::CursorMoved { position, .. } => {
                 self.cursor_x = position.x as f32;
                 self.cursor_y = position.y as f32;
                 if self.mouse_left_pressed {
@@ -294,8 +294,8 @@ impl ApplicationHandler for ShaderToyApp {
                     self.drag_end_y = self.cursor_y;
                 }
             }
-            WindowEvent::PointerButton { state, button, .. } => {
-                if button.mouse_button() == MouseButton::Left {
+            WindowEvent::MouseInput { state, button, .. } => {
+                if button == MouseButton::Left {
                     self.mouse_left_pressed = state == ElementState::Pressed;
                     if self.mouse_left_pressed {
                         self.drag_start_x = self.cursor_x;
@@ -328,7 +328,7 @@ impl ApplicationHandler for ShaderToyApp {
         event_loop.set_control_flow(ControlFlow::Poll);
     }
 
-    fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if self.close_requested {
             event_loop.exit();
         } else if let Some(ws) = &self.window_surface {
