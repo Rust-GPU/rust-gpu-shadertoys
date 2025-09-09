@@ -2,6 +2,11 @@
 
 ![shadertoys image](shadertoys.jpg)
 
+## How to run
+
+Run `cargo run --release` and a window will pop up with 28 different animations
+in it. (Two squares on the bottom right-hand side are empty.) That's it!
+
 ## License
 
 [Rust-GPU] is dual-licensed under [Apache-2.0/MIT](https://github.com/EmbarkStudios/rust-gpu/#license)
