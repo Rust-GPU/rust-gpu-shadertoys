@@ -10,6 +10,7 @@ use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::NamedKey;
 use winit::window::{Window, WindowAttributes, WindowId};
+use shared::ShaderConstants;
 
 #[self_referencing]
 struct WindowSurface {
@@ -105,8 +106,15 @@ impl ShaderToyApp {
         {
             required_features |= wgpu::Features::SPIRV_SHADER_PASSTHROUGH;
         }
+
+        const MAX_PUSH_CONSTANT_SIZE: u32 = {
+            let v = size_of::<ShaderConstants>();
+            // Not sure if this is portable on Metal or DX12 in the first place...
+            assert!(v <= 128, "Push constant larger than the minimum that Vulkan requires, may not be portable!");
+            v as u32
+        };
         let required_limits = wgpu::Limits {
-            max_push_constant_size: 256,
+            max_push_constant_size: MAX_PUSH_CONSTANT_SIZE,
             ..Default::default()
         };
         let (device, queue) = adapter
