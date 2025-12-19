@@ -199,7 +199,7 @@ impl ShaderToyApp {
         let frame = match surface.get_current_texture() {
             Ok(frame) => frame,
             Err(e) => {
-                eprintln!("Failed to acquire texture: {:?}", e);
+                eprintln!("Failed to acquire texture: {e:?}");
                 return;
             }
         };
@@ -306,11 +306,9 @@ impl ApplicationHandler for ShaderToyApp {
                     }
                 }
             }
-            WindowEvent::MouseWheel { delta, .. } => {
-                if let winit::event::MouseScrollDelta::LineDelta(x, y) = delta {
-                    self.drag_end_x = x * 0.1;
-                    self.drag_end_y = y * 0.1;
-                }
+            WindowEvent::MouseWheel { delta: winit::event::MouseScrollDelta::LineDelta(x, y), .. } => {
+                self.drag_end_x = x * 0.1;
+                self.drag_end_y = y * 0.1;
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.logical_key == NamedKey::Escape && event.state == ElementState::Pressed {
