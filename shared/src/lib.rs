@@ -31,7 +31,7 @@ pub struct ShaderConstants {
 }
 
 pub fn saturate(x: f32) -> f32 {
-    x.max(0.0).min(1.0)
+    x.clamp(0.0, 1.0)
 }
 
 /// Based on: https://seblagarde.wordpress.com/2014/12/01/inverse-trigonometric-functions-gpu-optimization-for-amd-gcn-architecture/
@@ -60,16 +60,6 @@ pub fn mix<X: Copy + Mul<A, Output = X> + Add<Output = X> + Sub<Output = X>, A: 
     a: A,
 ) -> X {
     x - x * a + y * a
-}
-
-pub trait Clamp {
-    fn clamp(self, min: Self, max: Self) -> Self;
-}
-
-impl Clamp for f32 {
-    fn clamp(self, min: Self, max: Self) -> Self {
-        self.max(min).min(max)
-    }
 }
 
 pub trait FloatExt {
@@ -232,5 +222,5 @@ impl VecExt for Vec4 {
 }
 
 pub fn discard() {
-    unsafe { spirv_std::arch::demote_to_helper_invocation() }
+    spirv_std::arch::demote_to_helper_invocation()
 }
