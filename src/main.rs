@@ -1,5 +1,6 @@
 use futures::executor::block_on;
 use ouroboros::self_referencing;
+use shared::ShaderConstants;
 use std::error::Error;
 use std::time::Instant;
 use wgpu::{self, InstanceDescriptor};
@@ -10,7 +11,6 @@ use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::NamedKey;
 use winit::window::{Window, WindowAttributes, WindowId};
-use shared::ShaderConstants;
 
 #[self_referencing]
 struct WindowSurface {
@@ -110,7 +110,10 @@ impl ShaderToyApp {
         const MAX_PUSH_CONSTANT_SIZE: u32 = {
             let v = size_of::<ShaderConstants>();
             // Not sure if this is portable on Metal or DX12 in the first place...
-            assert!(v <= 128, "Push constant larger than the minimum that Vulkan requires, may not be portable!");
+            assert!(
+                v <= 128,
+                "Push constant larger than the minimum that Vulkan requires, may not be portable!"
+            );
             v as u32
         };
         let required_limits = wgpu::Limits {
@@ -302,26 +305,32 @@ impl ApplicationHandler for ShaderToyApp {
                     self.drag_end_y = self.cursor_y;
                 }
             }
-            WindowEvent::MouseInput { state, button, .. } => {
-                if button == MouseButton::Left {
-                    self.mouse_left_pressed = state == ElementState::Pressed;
-                    if self.mouse_left_pressed {
-                        self.drag_start_x = self.cursor_x;
-                        self.drag_start_y = self.cursor_y;
-                        self.drag_end_x = self.cursor_x;
-                        self.drag_end_y = self.cursor_y;
-                        self.mouse_left_clicked = true;
-                    }
+            WindowEvent::MouseInput {
+                state,
+                button: MouseButton::Left,
+                ..
+            } => {
+                self.mouse_left_pressed = state == ElementState::Pressed;
+                if self.mouse_left_pressed {
+                    self.drag_start_x = self.cursor_x;
+                    self.drag_start_y = self.cursor_y;
+                    self.drag_end_x = self.cursor_x;
+                    self.drag_end_y = self.cursor_y;
+                    self.mouse_left_clicked = true;
                 }
             }
-            WindowEvent::MouseWheel { delta: winit::event::MouseScrollDelta::LineDelta(x, y), .. } => {
+            WindowEvent::MouseWheel {
+                delta: winit::event::MouseScrollDelta::LineDelta(x, y),
+                ..
+            } => {
                 self.drag_end_x = x * 0.1;
                 self.drag_end_y = y * 0.1;
             }
-            WindowEvent::KeyboardInput { event, .. } => {
-                if event.logical_key == NamedKey::Escape && event.state == ElementState::Pressed {
-                    self.close_requested = true;
-                }
+            WindowEvent::KeyboardInput { event, .. }
+                if event.logical_key == NamedKey::Escape
+                    && event.state == ElementState::Pressed =>
+            {
+                self.close_requested = true;
             }
             WindowEvent::RedrawRequested => self.render(),
             _ => {}

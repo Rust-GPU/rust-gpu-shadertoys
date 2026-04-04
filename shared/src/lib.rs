@@ -1,7 +1,6 @@
 //! Ported to Rust from https://github.com/Tw1ddle/Sky-Shader/blob/master/src/shaders/glsl/sky.fragment
 
 #![cfg_attr(target_arch = "spirv", no_std)]
-#![feature(asm_experimental_arch)]
 
 use bytemuck::{Pod, Zeroable};
 use core::f32::consts::PI;
