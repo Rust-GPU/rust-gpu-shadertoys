@@ -240,7 +240,7 @@ impl State {
 
     pub fn main_image(&mut self, frag_color: &mut Vec4, frag_coord: Vec2) {
         let aspect_ratio: Vec2 = vec2(self.inputs.resolution.x / self.inputs.resolution.y, 1.0);
-        let fov: f32 = 45.0.to_radians().tan();
+        let fov: f32 = 45.0_f32.to_radians().tan();
         let point_ndc: Vec2 = frag_coord / self.inputs.resolution.xy();
         let point_cam: Vec3 = ((2.0 * point_ndc - Vec2::ONE) * aspect_ratio * fov).extend(-1.0);
 
